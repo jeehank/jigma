@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import type { Project, PresenceUser } from '../../types';
 import {
   ArrowLeft,
-  Layout,
-  Edit3,
   Download,
   CheckCircle2,
   Users,
@@ -62,15 +60,11 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
           <ArrowLeft className="w-4 h-4" />
         </button>
 
+        <h1 className="text-xl font-bold text-white tracking-wide mr-2">Jigma</h1>
+
         <div className="h-5 w-px bg-emerald-900/60" />
 
         <div className="flex items-center space-x-2">
-          {project.type === 'design' ? (
-            <Layout className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-          ) : (
-            <Edit3 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-          )}
-
           {isEditingTitle ? (
             <form onSubmit={handleTitleSubmit}>
               <input
@@ -91,10 +85,6 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
               {project.title}
             </h2>
           )}
-
-          <span className="text-[10px] px-2 py-0.5 bg-emerald-950 text-emerald-400 border border-emerald-500/40 rounded-full font-bold uppercase">
-            {project.type}
-          </span>
         </div>
       </div>
 
