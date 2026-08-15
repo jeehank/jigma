@@ -45,7 +45,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="min-h-screen bg-[#030704] text-gray-100 flex flex-col relative font-sans overflow-x-hidden">
-      {/* WebGL Scanner Background */}
       <div className="fixed inset-0 z-0 opacity-40 pointer-events-none">
         <Scanner
           color1="#00ff66"
@@ -58,7 +57,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         />
       </div>
 
-      {/* Top Header - ONLY text saying 'Jigma' */}
       <header className="h-16 border-b border-emerald-500/30 glass-panel px-6 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center">
           <h1 className="text-2xl font-bold text-white tracking-wide">
@@ -96,7 +94,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </header>
 
-      {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-10 z-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
@@ -182,7 +179,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 className="group glass-panel rounded-2xl border border-emerald-500/20 hover:border-emerald-400 transition-all duration-300 overflow-hidden flex flex-col justify-between hover:shadow-xl hover:shadow-emerald-500/10 cursor-pointer bg-[#050b07]/90"
                 onClick={() => onOpenProject(project.id)}
               >
-                {/* Real Canvas Preview Snapshot Image (NO TYPE BADGE ON TOP LEFT) */}
                 <div className="h-44 bg-black relative overflow-hidden flex items-center justify-center border-b border-emerald-900/40">
                   {project.thumbnail_url ? (
                     <img
@@ -208,7 +204,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                   )}
 
-                  {/* Action Menu button */}
                   <div className="absolute top-3 right-3">
                     <button
                       onClick={(e) => {
@@ -250,7 +245,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                {/* Card Info */}
                 <div className="p-4 flex-1 flex flex-col justify-between font-mono">
                   <div>
                     <h3 className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors line-clamp-1">

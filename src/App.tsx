@@ -30,7 +30,6 @@ export function App() {
   const [elementsList, setElementsList] = useState<any[]>([]);
 
   useEffect(() => {
-    // 1. Check local session storage first
     const savedSession = localStorage.getItem('jigma_user_session');
     if (savedSession) {
       try {
@@ -39,7 +38,6 @@ export function App() {
       } catch (e) {}
     }
 
-    // 2. Check Supabase auth session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const uProfile: UserProfile = {

@@ -57,7 +57,6 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Design Board Choice */}
             <div
               onClick={() => setSelectedType('design')}
               className={`cursor-pointer rounded-2xl p-5 border-2 transition-all relative overflow-hidden flex flex-col justify-between ${
@@ -104,7 +103,6 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               </div>
             </div>
 
-            {/* Whiteboard Choice */}
             <div
               onClick={() => setSelectedType('whiteboard')}
               className={`cursor-pointer rounded-2xl p-5 border-2 transition-all relative overflow-hidden flex flex-col justify-between ${

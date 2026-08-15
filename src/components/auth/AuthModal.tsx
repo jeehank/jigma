@@ -61,12 +61,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
     onSuccess(profile);
   };
 
-  // Helper: Force-confirm user via Supabase admin-like SQL and then sign in
   const forceConfirmAndSignIn = async (userEmail: string, userPassword: string): Promise<boolean> => {
-    // Use Supabase RPC or direct update to force-confirm the user
-    // Then try sign in again
     try {
-      // Attempt sign in — the trigger should have confirmed the user on INSERT
       const { data, error: err } = await supabase.auth.signInWithPassword({
         email: userEmail,
         password: userPassword,
@@ -95,9 +91,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
 
     try {
       if (isSignUp) {
-        // ===== REGISTER FLOW =====
-
-        // Step 1: Try to create the account
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
@@ -107,7 +100,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
         });
 
         if (signUpErr) {
-          // User already exists
           if (signUpErr.message.toLowerCase().includes('already') ||
               signUpErr.status === 422 ||
               signUpErr.status === 400) {
@@ -119,39 +111,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
           return;
         }
 
-        // Step 2: If we got a session immediately, we're in
         if (signUpData?.session && signUpData.user) {
           finishLogin(makeProfile(signUpData.user.id, cleanEmail));
           return;
         }
 
-        // Step 3: signUp succeeded but no session (email confirmation pending).
-        // Wait a moment for the DB trigger to fire, then try to sign in.
         if (signUpData?.user) {
-          // Small delay to let the trigger commit
           await new Promise(resolve => setTimeout(resolve, 1000));
-
-          // Try signing in with the credentials
           const loggedIn = await forceConfirmAndSignIn(cleanEmail, password);
           if (loggedIn) return;
 
-          // If still can't sign in, show message
           setMessage('Account created! Please click Login to sign in with your credentials.');
           setIsSignUp(false);
           setLoading(false);
           return;
         }
-
       } else {
-        // ===== LOGIN FLOW =====
-
         const { data, error: signInErr } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password,
         });
 
         if (signInErr) {
-          // If invalid credentials, give helpful message
           if (signInErr.message.toLowerCase().includes('invalid')) {
             setError('Invalid email or password. If you haven\'t registered yet, click Sign Up first.');
           } else {
@@ -175,7 +156,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
 
   return (
     <div className="w-full h-screen flex items-center justify-center p-4 bg-[#030704] relative overflow-hidden font-sans">
-      {/* Animated WebGL Scanner Background */}
       <div className="absolute inset-0 z-0 opacity-70 pointer-events-none">
         <Scanner
           color1="#00ff66"
