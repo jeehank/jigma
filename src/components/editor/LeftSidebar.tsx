@@ -35,39 +35,39 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   const getIcon = (type: string) => {
     switch (type) {
       case 'rect':
-        return <Square className="w-3.5 h-3.5 text-purple-400" />;
+        return <Square className="w-3.5 h-3.5 text-emerald-400" />;
       case 'circle':
-        return <Circle className="w-3.5 h-3.5 text-indigo-400" />;
+        return <Circle className="w-3.5 h-3.5 text-emerald-400" />;
       case 'star':
-        return <Star className="w-3.5 h-3.5 text-amber-400" />;
+        return <Star className="w-3.5 h-3.5 text-emerald-400" />;
       case 'arrow':
       case 'line':
-        return <ArrowUpRight className="w-3.5 h-3.5 text-teal-400" />;
+        return <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />;
       case 'text':
-        return <Type className="w-3.5 h-3.5 text-blue-400" />;
+        return <Type className="w-3.5 h-3.5 text-emerald-400" />;
       case 'image':
         return <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />;
       case 'frame':
-        return <Maximize2 className="w-3.5 h-3.5 text-purple-400" />;
+        return <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />;
       default:
-        return <Layers className="w-3.5 h-3.5 text-gray-400" />;
+        return <Layers className="w-3.5 h-3.5 text-emerald-400" />;
     }
   };
 
   return (
-    <aside className="w-64 glass-panel border-r border-white/10 p-4 flex flex-col justify-between text-xs text-gray-200">
+    <aside className="w-64 glass-panel border-r border-emerald-500/30 p-4 flex flex-col justify-between text-xs text-gray-200 font-mono">
       <div>
-        <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-800">
+        <div className="flex items-center justify-between pb-3 mb-3 border-b border-emerald-900/60">
           <h3 className="font-bold text-white uppercase tracking-wider text-[11px] flex items-center space-x-2">
-            <Layers className="w-4 h-4 text-purple-400" />
-            <span>Layers Tree ({elements.length})</span>
+            <Layers className="w-4 h-4 text-emerald-400" />
+            <span>LAYERS TREE ({elements.length})</span>
           </h3>
         </div>
 
         {elements.length === 0 ? (
-          <div className="p-6 text-center text-gray-500 text-xs">
+          <div className="p-6 text-center text-emerald-500/70 text-xs font-mono">
             <p>No elements on canvas.</p>
-            <p className="mt-1 text-[11px]">Use top toolbar to add shapes, text, or images.</p>
+            <p className="mt-1 text-[11px]">Use bottom toolbar to add shapes, text, or images.</p>
           </div>
         ) : (
           <div className="space-y-1 max-h-[calc(100vh-180px)] overflow-y-auto pr-1">
@@ -82,13 +82,13 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                     onClick={() => onSelectElement(el.id)}
                     className={`group flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer transition-all ${
                       isSelected
-                        ? 'bg-purple-600/30 border border-purple-500/40 text-white font-medium shadow-md'
-                        : 'hover:bg-gray-800/80 text-gray-300'
+                        ? 'bg-emerald-500/30 border border-emerald-400 text-white font-bold shadow-md'
+                        : 'hover:bg-emerald-950/40 text-gray-300'
                     }`}
                   >
                     <div className="flex items-center space-x-2.5 min-w-0">
                       {getIcon(el.type)}
-                      <span className="truncate text-xs">
+                      <span className="truncate text-xs font-mono">
                         {el.name || `${el.type} (${el.id.slice(0, 4)})`}
                       </span>
                     </div>
@@ -102,7 +102,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                         className="p-1 hover:text-white text-gray-400 rounded"
                         title="Toggle Visibility"
                       >
-                        {el.hidden ? <EyeOff className="w-3 h-3 text-red-400" /> : <Eye className="w-3 h-3" />}
+                        {el.hidden ? <EyeOff className="w-3 h-3 text-red-400" /> : <Eye className="w-3 h-3 text-emerald-400" />}
                       </button>
 
                       <button
@@ -113,7 +113,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                         className="p-1 hover:text-white text-gray-400 rounded"
                         title="Toggle Lock"
                       >
-                        {el.locked ? <Lock className="w-3 h-3 text-amber-400" /> : <Unlock className="w-3 h-3" />}
+                        {el.locked ? <Lock className="w-3 h-3 text-amber-400" /> : <Unlock className="w-3 h-3 text-emerald-400" />}
                       </button>
 
                       <button
@@ -124,7 +124,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                         className="p-1 hover:text-red-400 text-gray-400 rounded"
                         title="Delete Layer"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3 h-3 text-red-400" />
                       </button>
                     </div>
                   </div>
