@@ -22,6 +22,15 @@ interface AuthModalProps {
   onClose?: () => void;
 }
 
+function makeProfile(id: string, email: string): UserProfile {
+  return {
+    id,
+    email,
+    full_name: email.split('@')[0],
+    avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${id}`,
+  };
+}
+
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -33,6 +42,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
 
   if (!isOpen) return null;
 
+  const finishLogin = (profile: UserProfile) => {
+    localStorage.setItem('jigma_user_session', JSON.stringify(profile));
+
+    // Also upsert into profiles table (fire and forget)
+    supabase.from('profiles').upsert({
+      id: profile.id,
+      email: profile.email,
+      full_name: profile.full_name,
+      avatar_url: profile.avatar_url,
+    }).then(() => {});
+
+    onSuccess(profile);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -40,145 +63,90 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
     setMessage(null);
 
     const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password.trim();
 
-    if (!cleanEmail || !cleanPassword) {
-      setError('Please enter a valid email and password.');
+    if (!cleanEmail || !password || password.length < 6) {
+      setError('Please enter a valid email and a password with at least 6 characters.');
       setLoading(false);
       return;
     }
 
     try {
-      // 1. First, attempt signInWithPassword
-      const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password: cleanPassword,
-      });
-
-      if (!signInErr && signInData?.user) {
-        const userProfile: UserProfile = {
-          id: signInData.user.id,
-          email: signInData.user.email || cleanEmail,
-          full_name: signInData.user.user_metadata?.full_name || cleanEmail.split('@')[0],
-          avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${signInData.user.id}`,
-        };
-
-        // Sync profile to Supabase database profiles table
-        try {
-          await supabase.from('profiles').upsert({
-            id: userProfile.id,
-            email: userProfile.email,
-            full_name: userProfile.full_name,
-            avatar_url: userProfile.avatar_url,
-          });
-        } catch (e) {}
-
-        localStorage.setItem('jigma_user_session', JSON.stringify(userProfile));
-        onSuccess(userProfile);
-        return;
-      }
-
-      // 2. If signInWithPassword fails, attempt signUp
-      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password: cleanPassword,
-        options: {
-          data: { full_name: cleanEmail.split('@')[0] },
-        },
-      });
-
-      if (signUpData?.user) {
-        const userId = signUpData.user.id;
-        const userProfile: UserProfile = {
-          id: userId,
+      if (isSignUp) {
+        // ===== SIGN UP FLOW =====
+        // 1. Create the account in Supabase Auth
+        const { data, error: signUpErr } = await supabase.auth.signUp({
           email: cleanEmail,
-          full_name: cleanEmail.split('@')[0],
-          avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${userId}`,
-        };
+          password,
+          options: {
+            data: { full_name: cleanEmail.split('@')[0] },
+          },
+        });
 
-        // Sync profile to Supabase database profiles table
-        try {
-          await supabase.from('profiles').upsert({
-            id: userId,
+        if (signUpErr) {
+          // "User already registered" → tell them to login instead
+          if (signUpErr.message.toLowerCase().includes('already registered') ||
+              signUpErr.message.toLowerCase().includes('already exists')) {
+            setError('An account with this email already exists. Switch to Login.');
+          } else {
+            setError(signUpErr.message);
+          }
+          setLoading(false);
+          return;
+        }
+
+        if (data.user) {
+          // Account created. The auto-confirm trigger ensures email_confirmed_at is set.
+          // If we got a session back, we're logged in immediately.
+          if (data.session) {
+            finishLogin(makeProfile(data.user.id, cleanEmail));
+            return;
+          }
+
+          // No session returned (shouldn't happen with auto-confirm, but handle it):
+          // Try signing in immediately with the credentials we just used.
+          const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
             email: cleanEmail,
-            full_name: userProfile.full_name,
-            avatar_url: userProfile.avatar_url,
+            password,
           });
-        } catch (e) {}
 
-        localStorage.setItem('jigma_user_session', JSON.stringify(userProfile));
-        onSuccess(userProfile);
-        return;
-      }
+          if (!loginErr && loginData.user) {
+            finishLogin(makeProfile(loginData.user.id, cleanEmail));
+            return;
+          }
 
-      // 3. Fallback: If signUp returned "User already registered" or password differed,
-      // create/log user in with consistent Supabase account record
-      if (signUpErr || signInErr) {
-        const fallbackId = 'usr_' + Math.abs(hashCode(cleanEmail));
-        const userProfile: UserProfile = {
-          id: fallbackId,
+          // If even that fails, show success and switch to login view
+          setMessage('Account created! You can now log in.');
+          setIsSignUp(false);
+        }
+      } else {
+        // ===== LOGIN FLOW =====
+        const { data, error: signInErr } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
-          full_name: cleanEmail.split('@')[0],
-          avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${fallbackId}`,
-        };
+          password,
+        });
 
-        // Save profile to Supabase profiles table
-        try {
-          await supabase.from('profiles').upsert({
-            id: fallbackId,
-            email: cleanEmail,
-            full_name: userProfile.full_name,
-            avatar_url: userProfile.avatar_url,
-          });
-        } catch (e) {}
+        if (signInErr) {
+          setError(signInErr.message);
+          setLoading(false);
+          return;
+        }
 
-        localStorage.setItem('jigma_user_session', JSON.stringify(userProfile));
-        onSuccess(userProfile);
-        return;
+        if (data.user) {
+          finishLogin(makeProfile(data.user.id, cleanEmail));
+          return;
+        }
       }
     } catch (err: any) {
-      // Guaranteed fallback login so user is NEVER blocked by auth errors
-      const fallbackId = 'usr_' + Math.abs(hashCode(cleanEmail));
-      const userProfile: UserProfile = {
-        id: fallbackId,
-        email: cleanEmail,
-        full_name: cleanEmail.split('@')[0],
-        avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${fallbackId}`,
-      };
-      localStorage.setItem('jigma_user_session', JSON.stringify(userProfile));
-      onSuccess(userProfile);
+      setError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setError(null);
-    try {
-      const { error: googleErr } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-      });
-      if (googleErr) {
-        setError('Google OAuth provider is not enabled on this Supabase instance. Please enter your email and password above.');
-      }
-    } catch (err: any) {
-      setError('Google OAuth provider is not enabled on this Supabase instance. Please enter your email and password above.');
-    }
-  };
-
-  function hashCode(str: string) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i);
-      hash |= 0;
-    }
-    return hash;
-  }
-
   return (
     <div className="w-full h-screen flex items-center justify-center p-4 bg-[#030704] relative overflow-hidden font-sans">
       {/* Animated WebGL Scanner Background */}
-      <div className="absolute inset-0 z-0 opacity-70 pointer-events-auto">
+      <div className="absolute inset-0 z-0 opacity-70 pointer-events-none">
         <Scanner
           color1="#00ff66"
           color2="#042f1a"
@@ -195,7 +163,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
         <GlassCardHeader>
           <GlassCardTitle>{isSignUp ? 'Create an account' : 'Login to your account'}</GlassCardTitle>
           <GlassCardDescription>
-            {isSignUp ? 'Enter your details below to register a new account' : 'Enter your email below to login to your account'}
+            {isSignUp
+              ? 'Enter your email and password to register'
+              : 'Enter your email below to login to your account'}
           </GlassCardDescription>
           <GlassCardAction>
             <Button
@@ -244,15 +214,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
               <div className="grid gap-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  {!isSignUp && (
-                    <button
-                      type="button"
-                      onClick={() => setMessage('Password reset notification: Account is synced with Supabase.')}
-                      className="ml-auto inline-block text-xs text-gray-300 underline-offset-4 hover:underline bg-transparent border-0 p-0 cursor-pointer"
-                    >
-                      Forgot your password?
-                    </button>
-                  )}
                 </div>
 
                 <div className="relative">
@@ -261,6 +222,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
                     type={showPassword ? 'text' : 'password'}
                     required
                     minLength={6}
+                    placeholder="Min 6 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
@@ -280,11 +242,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
 
         <GlassCardFooter className="flex-col gap-2">
           <Button type="submit" form="auth-form" disabled={loading} className="w-full">
-            {loading ? 'Logging in...' : isSignUp ? 'Sign Up' : 'Login'}
-          </Button>
-
-          <Button variant="ghost" type="button" onClick={handleGoogleSignIn} className="w-full">
-            Login with Google
+            {loading ? 'Please wait...' : isSignUp ? 'Register' : 'Login'}
           </Button>
         </GlassCardFooter>
       </GlassCard>
