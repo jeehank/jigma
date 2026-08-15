@@ -22,9 +22,9 @@ export function App() {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [activeDesignTool, setActiveDesignTool] = useState('select');
   const [activeWhiteboardTool, setActiveWhiteboardTool] = useState<
-    'select' | 'pen' | 'highlighter' | 'eraser' | 'sticky' | 'rect' | 'circle' | 'text'
+    'select' | 'pan' | 'pen' | 'highlighter' | 'eraser' | 'sticky' | 'rect' | 'circle' | 'text'
   >('pen');
-  const [whiteboardColor, setWhiteboardColor] = useState('#38bdf8');
+  const [whiteboardColor, setWhiteboardColor] = useState('#00ff66');
   const [whiteboardWidth, setWhiteboardWidth] = useState(6);
   const [selectedElement, setSelectedElement] = useState<any | null>(null);
   const [elementsList, setElementsList] = useState<any[]>([]);
@@ -76,33 +76,16 @@ export function App() {
         return;
       }
     } catch (e) {
-      console.warn('Supabase offline or fetching failed, using fallback store');
+      console.warn('Supabase fetch offline using fallback store');
     }
 
     const local = localStorage.getItem('figmaclone_projects');
     if (local) {
       setProjects(JSON.parse(local));
     } else {
-      const starterProjects: Project[] = [
-        {
-          id: 'proj_starter_design',
-          title: 'Mobile App Interface Design',
-          type: 'design',
-          data: {},
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: 'proj_starter_wb',
-          title: 'Team Architecture Brainstorming',
-          type: 'whiteboard',
-          data: {},
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
-      setProjects(starterProjects);
-      localStorage.setItem('figmaclone_projects', JSON.stringify(starterProjects));
+      // Start with empty project list - NO HARDCODED DEMO DATA
+      setProjects([]);
+      localStorage.setItem('figmaclone_projects', JSON.stringify([]));
     }
   };
 
@@ -168,11 +151,16 @@ export function App() {
     localStorage.setItem('figmaclone_projects', JSON.stringify(updated));
   };
 
-  const handleUpdateProjectData = async (data: any) => {
+  const handleUpdateProjectData = async (data: any, thumbnailUrl?: string) => {
     if (!activeProjectId) return;
     const updated = projects.map((p) =>
       p.id === activeProjectId
-        ? { ...p, data, updated_at: new Date().toISOString() }
+        ? {
+            ...p,
+            data,
+            thumbnail_url: thumbnailUrl || p.thumbnail_url,
+            updated_at: new Date().toISOString(),
+          }
         : p
     );
     setProjects(updated);
@@ -181,7 +169,11 @@ export function App() {
     try {
       await supabase
         .from('projects')
-        .update({ data, updated_at: new Date().toISOString() })
+        .update({
+          data,
+          thumbnail_url: thumbnailUrl || undefined,
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', activeProjectId);
     } catch (e) {}
   };
@@ -237,7 +229,7 @@ export function App() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#0d0f17] text-white overflow-hidden select-none">
+    <div className="h-screen w-screen flex flex-col bg-[#030704] text-white overflow-hidden select-none font-sans">
       <EditorHeader
         project={activeProject}
         onUpdateTitle={handleUpdateTitle}
@@ -273,7 +265,7 @@ export function App() {
                 {
                   id: user.id,
                   name: user.full_name || 'You',
-                  color: '#8b5cf6',
+                  color: '#00ff66',
                   x: 0,
                   y: 0,
                 },
@@ -288,7 +280,7 @@ export function App() {
             elements={elementsList}
             selectedId={selectedElement?.id || null}
             onSelectElement={() => {}}
-            onDeleteElement={() => {}}
+            onDeleteElement={(id) => (window as any).__designCanvasActions?.deleteElementById(id)}
             onToggleVisibility={() => {}}
             onToggleLock={() => {}}
           />
@@ -313,6 +305,7 @@ export function App() {
                 onAddImage={(url) => (window as any).__designCanvasActions?.addImage(url)}
                 onConvertToFrame={() => (window as any).__designCanvasActions?.convertToFrame()}
                 onToggleMask={() => (window as any).__designCanvasActions?.toggleMask()}
+                onDeleteSelected={() => (window as any).__designCanvasActions?.deleteActiveElement()}
               />
             </>
           ) : (
@@ -343,6 +336,7 @@ export function App() {
             onUpdateElement={(updates) => (window as any).__designCanvasActions?.updateActiveElement(updates)}
             onConvertToFrame={() => (window as any).__designCanvasActions?.convertToFrame()}
             onToggleMask={() => (window as any).__designCanvasActions?.toggleMask()}
+            onDeleteSelected={() => (window as any).__designCanvasActions?.deleteActiveElement()}
             onExportPng={() => (window as any).__designCanvasActions?.exportPng()}
             onExportSvg={() => (window as any).__designCanvasActions?.exportSvg()}
             onExportPdf={() => (window as any).__designCanvasActions?.exportPdf()}
