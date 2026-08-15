@@ -5,7 +5,7 @@ import { exportElementAsPng, exportAsSvg, exportElementAsPdf } from '../../lib/e
 
 interface DesignCanvasProps {
   initialData?: any;
-  onChangeData: (data: any) => void;
+  onChangeData: (data: any, thumbnailUrl?: string) => void;
   selectedElementId: string | null;
   onSelectElement: (element: any | null) => void;
   onUpdateElementsList: (elements: any[]) => void;
@@ -33,7 +33,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     const canvas = new fabric.Canvas(canvasRef.current, {
       width,
       height,
-      backgroundColor: '#0f1117',
+      backgroundColor: '#030704',
       selection: true,
       preserveObjectStacking: true,
     });
@@ -44,13 +44,20 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       const objects = canvas.getObjects();
       const layers = objects.map((obj: any, idx: number) => ({
         id: obj.id || `obj_${idx}_${obj.type}`,
-        name: (obj as any).customName || `${obj.type} ${idx + 1}`,
+        name: obj.customName || `${obj.type} ${idx + 1}`,
         type: obj.type,
         hidden: !obj.visible,
         locked: !obj.selectable,
       }));
       onUpdateElementsList(layers);
-      onChangeData(canvas.toJSON());
+
+      // Generate Live Thumbnail Screenshot of the canvas
+      let thumbUrl = '';
+      try {
+        thumbUrl = canvas.toDataURL({ format: 'png', multiplier: 0.3 });
+      } catch (e) {}
+
+      onChangeData(canvas.toJSON(), thumbUrl);
     };
 
     const handleSelection = () => {
@@ -87,67 +94,12 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       });
     };
 
-    if (initialData && Object.keys(initialData).length > 0) {
+    // Load initial data if present (NO hardcoded starter cards if empty!)
+    if (initialData && Object.keys(initialData).length > 0 && initialData.objects && initialData.objects.length > 0) {
       canvas.loadFromJSON(initialData, () => {
         canvas.renderAll();
         updateLayersList();
       });
-    } else {
-      const welcomeFrame = new fabric.Rect({
-        left: 200,
-        top: 150,
-        width: 600,
-        height: 400,
-        fill: '#1a1d29',
-        stroke: '#3b82f6',
-        strokeWidth: 2,
-        rx: 16,
-        ry: 16,
-      });
-      (welcomeFrame as any).customName = 'Frame 1 (Artboard)';
-
-      const titleText = new fabric.IText('Figma Collaborative Board', {
-        left: 240,
-        top: 190,
-        fontSize: 32,
-        fontWeight: 'bold',
-        fill: '#ffffff',
-        fontFamily: 'Inter, sans-serif',
-      });
-      (titleText as any).customName = 'Title Text';
-
-      const subtitleText = new fabric.IText('Design shapes, apply exposure & tint, use blend modes, and export PNG/SVG/PDF!', {
-        left: 240,
-        top: 240,
-        fontSize: 14,
-        fill: '#9ca3af',
-        fontFamily: 'Inter, sans-serif',
-      });
-      (subtitleText as any).customName = 'Subtitle';
-
-      const shape1 = new fabric.Rect({
-        left: 240,
-        top: 290,
-        width: 120,
-        height: 120,
-        fill: '#8b5cf6',
-        rx: 12,
-        ry: 12,
-      });
-      (shape1 as any).customName = 'Purple Card';
-
-      const shape2 = new fabric.Circle({
-        left: 320,
-        top: 330,
-        radius: 60,
-        fill: '#ec4899',
-        globalCompositeOperation: 'multiply',
-      });
-      (shape2 as any).customName = 'Pink Circle (Multiply Blend)';
-
-      canvas.add(welcomeFrame, titleText, subtitleText, shape1, shape2);
-      canvas.renderAll();
-      updateLayersList();
     }
 
     canvas.on('selection:created', handleSelection);
@@ -156,6 +108,14 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     canvas.on('object:modified', updateLayersList);
     canvas.on('object:added', updateLayersList);
     canvas.on('object:removed', updateLayersList);
+
+    // Keyboard Shortcuts for Deleting elements
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !isEditingText(canvas)) {
+        deleteActiveElement();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
 
     const handleResize = () => {
       if (containerRef.current && fabricCanvasRef.current) {
@@ -168,10 +128,16 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     window.addEventListener('resize', handleResize);
 
     return () => {
+      window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', handleResize);
       canvas.dispose();
     };
   }, []);
+
+  const isEditingText = (canvas: fabric.Canvas) => {
+    const activeObj = canvas.getActiveObject();
+    return activeObj && (activeObj as any).isEditing;
+  };
 
   useEffect(() => {
     if (fabricCanvasRef.current) {
@@ -180,6 +146,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     }
   }, [zoomLevel]);
 
+  // Spacebar Panning
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !isSpacePressed) {
@@ -207,6 +174,35 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     };
   }, [isSpacePressed]);
 
+  // Delete Active Object
+  const deleteActiveElement = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const activeObjects = canvas.getActiveObjects();
+    if (activeObjects && activeObjects.length > 0) {
+      activeObjects.forEach((obj) => {
+        canvas.remove(obj);
+      });
+      canvas.discardActiveObject();
+      canvas.renderAll();
+      onSelectElement(null);
+    }
+  };
+
+  const deleteElementById = (id: string) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const objects = canvas.getObjects();
+    const target = objects.find((obj: any) => obj.id === id || obj.customName === id);
+    if (target) {
+      canvas.remove(target);
+      canvas.renderAll();
+      onSelectElement(null);
+    }
+  };
+
   const addShape = (type: 'rect' | 'circle' | 'star' | 'arrow' | 'line') => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
@@ -220,7 +216,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
         top: center.y - 60,
         width: 120,
         height: 120,
-        fill: '#8b5cf6',
+        fill: '#00ff66',
         rx: 8,
         ry: 8,
       });
@@ -230,7 +226,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
         left: center.x - 60,
         top: center.y - 60,
         radius: 60,
-        fill: '#ec4899',
+        fill: '#10b981',
       });
       (shape as any).customName = 'Circle';
     } else if (type === 'star') {
@@ -250,13 +246,13 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
         {
           left: center.x - 50,
           top: center.y - 50,
-          fill: '#f59e0b',
+          fill: '#22c55e',
         }
       );
       (shape as any).customName = 'Star';
     } else {
       shape = new fabric.Line([center.x - 50, center.y, center.x + 50, center.y], {
-        stroke: '#3b82f6',
+        stroke: '#00ff66',
         strokeWidth: 4,
       });
       (shape as any).customName = 'Line';
@@ -319,8 +315,8 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       top: bounds.top - 40,
       width: bounds.width + 40,
       height: bounds.height + 60,
-      fill: '#181b26',
-      stroke: '#8b5cf6',
+      fill: '#05140b',
+      stroke: '#00ff66',
       strokeWidth: 2,
       rx: 16,
       ry: 16,
@@ -332,7 +328,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       top: bounds.top - 32,
       fontSize: 12,
       fontWeight: 'bold',
-      fill: '#c4b5fd',
+      fill: '#00ff66',
       fontFamily: 'Inter, sans-serif',
     });
     (frameLabel as any).customName = 'Frame Header';
@@ -351,7 +347,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
     (activeObj as any).isMask = !(activeObj as any).isMask;
     if ((activeObj as any).isMask) {
-      activeObj.set({ opacity: 0.5, stroke: '#f59e0b', strokeWidth: 2 });
+      activeObj.set({ opacity: 0.5, stroke: '#00ff66', strokeWidth: 2 });
     } else {
       activeObj.set({ opacity: 1, strokeWidth: 0 });
     }
@@ -416,6 +412,8 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     convertToFrame,
     toggleMask,
     updateActiveElement,
+    deleteActiveElement,
+    deleteElementById,
     exportPng,
     exportSvg,
     exportPdf,
@@ -424,7 +422,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full relative overflow-hidden bg-grid-pattern bg-[#0d0f17] flex items-center justify-center"
+      className="w-full h-full relative overflow-hidden bg-grid-pattern bg-[#030704] flex items-center justify-center"
     >
       <canvas ref={canvasRef} />
     </div>
