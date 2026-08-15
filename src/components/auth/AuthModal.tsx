@@ -42,14 +42,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
 
   if (!isOpen) return null;
 
-  const finishLogin = (profile: UserProfile) => {
+  const finishLogin = async (profile: UserProfile) => {
     localStorage.setItem('jigma_user_session', JSON.stringify(profile));
-    supabase.from('profiles').upsert({
-      id: profile.id,
-      email: profile.email,
-      full_name: profile.full_name,
-      avatar_url: profile.avatar_url,
-    }).then(() => {});
+    try {
+      await supabase.from('profiles').upsert({
+        id: profile.id,
+        email: profile.email,
+        username: profile.full_name || profile.email.split('@')[0],
+        full_name: profile.full_name,
+        avatar_url: profile.avatar_url,
+        role: 'user',
+        is_banned: false,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+    } catch (err) {
+      console.error('Failed to sync profile to Morpheus Supabase:', err);
+    }
     onSuccess(profile);
   };
 
