@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import getStroke from 'perfect-freehand';
 import { exportElementAsPng, exportAsSvg, exportElementAsPdf } from '../../lib/exportUtils';
-import { FileText, Trash2, Edit2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 interface Stroke {
   id: string;
@@ -76,14 +76,11 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
 
   const [currentStroke, setCurrentStroke] = useState<number[][] | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [activeStickyId, setActiveStickyId] = useState<string | null>(null);
 
-  // Sync state upward
   useEffect(() => {
     onChangeData({ strokes, stickyNotes });
   }, [strokes, stickyNotes]);
 
-  // Mouse Handlers for Freehand Pen & Eraser
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -99,7 +96,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         color: STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)],
       };
       setStickyNotes([...stickyNotes, newSticky]);
-      setActiveStickyId(newSticky.id);
       return;
     }
 
@@ -107,7 +103,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       setIsDrawing(true);
       setCurrentStroke([[x, y, e.pressure || 0.5]]);
     } else if (activeTool === 'eraser') {
-      // Erase strokes near pointer
       setStrokes((prev) =>
         prev.filter((st) => {
           return !st.points.some(([px, py]) => Math.hypot(px - x, py - y) < 20);
@@ -130,7 +125,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       const newStroke: Stroke = {
         id: 'stroke_' + Math.random().toString(36).slice(2, 7),
         points: currentStroke,
-        color: activeTool === 'highlighter' ? strokeColor : strokeColor,
+        color: strokeColor,
         size: activeTool === 'highlighter' ? strokeWidth * 2.5 : strokeWidth,
         isHighlighter: activeTool === 'highlighter',
       };
@@ -168,7 +163,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     setStickyNotes((prev) => prev.filter((s) => s.id !== id));
   };
 
-  // Export methods attached to window
   (window as any).__whiteboardCanvasActions = {
     exportPng: () => {
       if (containerRef.current) {
@@ -198,7 +192,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       }`}
       style={{ transform: `scale(${zoomLevel})`, transformOrigin: 'top left' }}
     >
-      {/* SVG Canvas for Freehand Pen Strokes */}
       <svg className="w-full h-full absolute inset-0 pointer-events-none z-10">
         {strokes.map((st) => (
           <path
@@ -209,7 +202,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
           />
         ))}
 
-        {/* Current Active Live Stroke */}
         {currentStroke && (
           <path
             d={getSvgPathFromStroke(
@@ -222,7 +214,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         )}
       </svg>
 
-      {/* Sticky Notes HTML Layer */}
       <div className="absolute inset-0 z-20 pointer-events-auto">
         {stickyNotes.map((sticky) => (
           <div
