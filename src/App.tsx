@@ -30,15 +30,28 @@ export function App() {
   const [elementsList, setElementsList] = useState<any[]>([]);
 
   useEffect(() => {
+    // 1. Check local session storage first
+    const savedSession = localStorage.getItem('jigma_user_session');
+    if (savedSession) {
+      try {
+        setUser(JSON.parse(savedSession));
+        setIsAuthOpen(false);
+      } catch (e) {}
+    }
+
+    // 2. Check Supabase auth session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        setUser({
+        const uProfile: UserProfile = {
           id: session.user.id,
           email: session.user.email || '',
           full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
           avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${session.user.id}`,
-        });
-      } else {
+        };
+        setUser(uProfile);
+        localStorage.setItem('jigma_user_session', JSON.stringify(uProfile));
+        setIsAuthOpen(false);
+      } else if (!savedSession) {
         setIsAuthOpen(true);
       }
     });
@@ -47,12 +60,14 @@ export function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUser({
+        const uProfile: UserProfile = {
           id: session.user.id,
           email: session.user.email || '',
           full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
           avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${session.user.id}`,
-        });
+        };
+        setUser(uProfile);
+        localStorage.setItem('jigma_user_session', JSON.stringify(uProfile));
         setIsAuthOpen(false);
       }
     });
@@ -61,7 +76,9 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    fetchProjects();
+    if (user) {
+      fetchProjects();
+    }
   }, [user]);
 
   const fetchProjects = async () => {
@@ -76,14 +93,13 @@ export function App() {
         return;
       }
     } catch (e) {
-      console.warn('Supabase fetch offline using fallback store');
+      console.warn('Supabase fetch offline, using fallback store');
     }
 
     const local = localStorage.getItem('figmaclone_projects');
     if (local) {
       setProjects(JSON.parse(local));
     } else {
-      // Start with empty project list - NO HARDCODED DEMO DATA
       setProjects([]);
       localStorage.setItem('figmaclone_projects', JSON.stringify([]));
     }
@@ -213,6 +229,7 @@ export function App() {
             onDuplicateProject={handleDuplicateProject}
             onSignOut={() => {
               supabase.auth.signOut();
+              localStorage.removeItem('jigma_user_session');
               setUser(null);
               setIsAuthOpen(true);
             }}
