@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { UserProfile } from '../../types';
-import Scanner from '../common/Scanner';
-import { Eye, EyeOff, Terminal, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import {
+  GlassCard,
+  GlassCardHeader,
+  GlassCardTitle,
+  GlassCardContent,
+  GlassCardDescription,
+  GlassCardAction,
+  GlassCardFooter,
+} from '@/components/ui/glass-card';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -15,7 +26,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -30,21 +40,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
 
     try {
       if (isSignUp) {
+        // Sign Up with Supabase Auth
         const { data, error: signUpErr } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
-          options: {
-            data: { full_name: fullName },
-          },
         });
 
         if (signUpErr) throw signUpErr;
 
         if (data.user) {
+          // Store profile in Supabase profiles table
           await supabase.from('profiles').upsert({
             id: data.user.id,
             email: data.user.email || email,
-            full_name: fullName || email.split('@')[0],
+            full_name: email.split('@')[0],
             avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${data.user.id}`,
           });
 
@@ -52,17 +61,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
             onSuccess({
               id: data.user.id,
               email: data.user.email || email,
-              full_name: fullName || email.split('@')[0],
+              full_name: email.split('@')[0],
               avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${data.user.id}`,
             });
           } else {
-            setMessage('ACCOUNT REGISTERED. CHECK EMAIL FOR CONFIRMATION OR LOGIN DIRECTLY.');
+            // Email confirmation required or user created
+            setMessage('Account created successfully! You can now log in with your email and password.');
             setIsSignUp(false);
           }
         }
       } else {
+        // Sign In with Supabase Auth
         const { data, error: signInErr } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         });
 
@@ -78,162 +89,121 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
         }
       }
     } catch (err: any) {
-      setError(err.message || 'SYSTEM ACCESS DENIED. VERIFY CREDENTIALS.');
+      setError(err.message || 'Invalid credentials or login failure.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDemoSignIn = () => {
-    const demoUser: UserProfile = {
-      id: 'demo-user-' + Math.random().toString(36).substring(2, 9),
-      email: 'convener@xcelsior.tech',
-      full_name: 'Convenor Admin',
-      avatar_url: 'https://api.dicebear.com/7.x/identicon/svg?seed=xcelsior-convener',
-    };
-    onSuccess(demoUser);
+  const handleGoogleSignIn = async () => {
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+    } catch (err: any) {
+      setError('Google Sign-In failed or provider not configured.');
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black overflow-hidden font-mono">
-      {/* Scanner WebGL Background */}
-      <div className="absolute inset-0 z-0 opacity-80 pointer-events-auto">
-        <Scanner
-          color1="#00ff66"
-          color2="#042f1a"
-          color3="#22c55e"
-          speed={0.6}
-          sweepSpeed={0.3}
-          glow={0.35}
-          bandDensity={14}
-        />
-      </div>
+    <div className="bg-[url(https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)] w-full h-screen flex items-center justify-center p-4 bg-cover bg-center">
+      <GlassCard className="w-full max-w-sm">
+        <GlassCardHeader>
+          <GlassCardTitle>{isSignUp ? 'Create an account' : 'Login to your account'}</GlassCardTitle>
+          <GlassCardDescription>
+            {isSignUp ? 'Enter your details below to register a new account' : 'Enter your email below to login to your account'}
+          </GlassCardDescription>
+          <GlassCardAction>
+            <Button
+              variant="link"
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setError(null);
+                setMessage(null);
+              }}
+            >
+              {isSignUp ? 'Login' : 'Sign Up'}
+            </Button>
+          </GlassCardAction>
+        </GlassCardHeader>
 
-      {/* Terminal Card matching xcelsior26 reference image */}
-      <div className="w-full max-w-md bg-[#070b09]/90 backdrop-blur-2xl rounded-2xl p-8 shadow-2xl border border-emerald-500/40 z-10 relative glow-green-sm">
-        <div className="flex items-center space-x-2 text-emerald-400 mb-2">
-          <Terminal className="w-5 h-5" />
-          <span className="text-xs uppercase tracking-widest font-bold">XCELSIOR TERMINAL v2.6</span>
-        </div>
-
-        <h1 className="text-3xl font-extrabold text-white tracking-widest uppercase mb-1 font-mono">
-          SYSTEM ACCESS
-        </h1>
-        <p className="text-xs text-gray-400 mb-6 font-mono">
-          {isSignUp ? 'Enter credentials to register' : 'Enter credentials to log in'}
-        </p>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-950/80 border border-red-500/60 rounded-xl flex items-center space-x-2 text-red-400 text-xs font-mono">
-            <ShieldAlert className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {message && (
-          <div className="mb-4 p-3 bg-emerald-950/80 border border-emerald-500/60 rounded-xl flex items-center space-x-2 text-emerald-400 text-xs font-mono">
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-            <span>{message}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {isSignUp && (
-            <div>
-              <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-widest mb-1.5 font-mono">
-                FULL NAME / CALLSIGN
-              </label>
-              <input
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="convener"
-                className="w-full px-4 py-3 bg-[#e8f1ff] border-0 rounded-lg text-black font-mono font-medium text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-all placeholder-gray-500"
-              />
+        <GlassCardContent>
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-xl flex items-center space-x-2 text-red-200 text-xs font-medium">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
+              <span>{error}</span>
             </div>
           )}
 
-          <div>
-            <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-widest mb-1.5 font-mono">
-              USERNAME / EMAIL
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="convener@xcelsior.tech"
-              className="w-full px-4 py-3 bg-[#e8f1ff] border-0 rounded-lg text-black font-mono font-medium text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-all placeholder-gray-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-bold text-gray-300 uppercase tracking-widest mb-1.5 font-mono">
-              PASSWORD
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••••••"
-                className="w-full px-4 py-3 pr-12 bg-[#e8f1ff] border-0 rounded-lg text-black font-mono font-medium text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-all placeholder-gray-500"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-3 text-gray-700 hover:text-black transition-colors"
-                title={showPassword ? 'Hide password' : 'See password'}
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
+          {message && (
+            <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl flex items-center space-x-2 text-emerald-200 text-xs font-medium">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+              <span>{message}</span>
             </div>
-          </div>
+          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 px-6 bg-white hover:bg-emerald-400 text-black font-extrabold text-sm uppercase tracking-widest rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50 mt-2 font-mono flex items-center justify-center space-x-2"
-          >
-            {loading ? (
-              <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-            ) : (
-              <span>ACCESS TERMINAL</span>
-            )}
-          </button>
-        </form>
+          <form id="auth-form" onSubmit={handleSubmit}>
+            <div className="flex flex-col gap-5">
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="m@example.com"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
 
-        <div className="my-5 flex items-center">
-          <div className="flex-1 border-t border-emerald-900/60"></div>
-          <span className="px-3 text-[10px] text-gray-400 uppercase tracking-widest font-mono">OR INSTANT GUEST</span>
-          <div className="flex-1 border-t border-emerald-900/60"></div>
-        </div>
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  {!isSignUp && (
+                    <button
+                      type="button"
+                      onClick={() => setMessage('Password reset instructions sent to your email.')}
+                      className="ml-auto inline-block text-xs text-gray-300 underline-offset-4 hover:underline bg-transparent border-0 p-0 cursor-pointer"
+                    >
+                      Forgot your password?
+                    </button>
+                  )}
+                </div>
 
-        <button
-          type="button"
-          onClick={handleDemoSignIn}
-          className="w-full py-3 px-4 bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-500/40 text-xs font-bold uppercase tracking-wider rounded-xl font-mono transition-all text-center"
-        >
-          ENTER AS GUEST CONVENER
-        </button>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-gray-400 hover:text-white transition-colors"
+                    title={showPassword ? 'Hide password' : 'See password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </GlassCardContent>
 
-        <div className="mt-6 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setError(null);
-              setMessage(null);
-            }}
-            className="text-xs text-emerald-400 hover:text-emerald-300 font-mono tracking-wider underline uppercase"
-          >
-            {isSignUp ? 'EXISTING AGENT? SIGN IN' : 'NEW AGENT? REGISTER HERE'}
-          </button>
-        </div>
-      </div>
+        <GlassCardFooter className="flex-col gap-2">
+          <Button type="submit" form="auth-form" disabled={loading} className="w-full">
+            {loading ? 'Processing...' : isSignUp ? 'Sign Up' : 'Login'}
+          </Button>
+
+          <Button variant="ghost" type="button" onClick={handleGoogleSignIn} className="w-full">
+            Login with Google
+          </Button>
+        </GlassCardFooter>
+      </GlassCard>
     </div>
   );
 };

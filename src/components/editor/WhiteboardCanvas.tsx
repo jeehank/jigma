@@ -45,7 +45,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   const [isPanning, setIsPanning] = useState(false);
   const startPanRef = useRef({ x: 0, y: 0 });
 
-  // NO HARDCODED STARTER DATA - start completely clean!
   const [strokes, setStrokes] = useState<Stroke[]>(initialData?.strokes || []);
   const [stickyNotes, setStickyNotes] = useState<StickyNote[]>(initialData?.stickyNotes || []);
 
@@ -72,8 +71,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   // Sync state upward & generate thumbnail screenshot
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Simple preview SVG data string
-      const svgThumb = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="#030704"/><g transform="scale(0.3)"><path d="M50 50 L150 150 L250 80" stroke="#00ff66" stroke-width="8" fill="none"/></g></svg>`;
+      const svgThumb = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="#0a0a0a"/><g transform="scale(0.3)"><path d="M50 50 L150 150 L250 80" stroke="#00ff66" stroke-width="8" fill="none"/></g></svg>`;
       const thumbUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svgThumb)}`;
       onChangeData({ strokes, stickyNotes, pan }, thumbUrl);
     }, 500);
@@ -84,11 +82,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   // Infinite Mouse Wheel Pan & Scroll Handler
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    if (e.ctrlKey) {
-      // Zoom centered
-      return;
-    }
-    // Infinite Pan displacement
     setPan((prev) => ({
       x: prev.x - e.deltaX,
       y: prev.y - e.deltaY,
@@ -98,8 +91,9 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   // Pointer Handlers for Drawing & Panning
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!containerRef.current) return;
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
 
-    // Middle Click (button === 1) or Pan tool or Spacebar -> Start Panning
+    // Middle Click or Pan tool or Spacebar -> Start Panning
     if (e.button === 1 || activeTool === 'pan' || isSpacePressed) {
       setIsPanning(true);
       startPanRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
@@ -126,13 +120,13 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       return;
     }
 
-    if (activeTool === 'pen' || activeTool === 'highlighter') {
+    if (activeTool === 'pen' || activeTool === 'highlighter' || activeTool === 'select') {
       setIsDrawing(true);
       setCurrentStroke([[x, y, e.pressure || 0.5]]);
     } else if (activeTool === 'eraser') {
       setStrokes((prev) =>
         prev.filter((st) => {
-          return !st.points.some(([px, py]) => Math.hypot(px - x, py - y) < 25);
+          return !st.points.some(([px, py]) => Math.hypot(px - x, py - y) < 30);
         })
       );
     }
@@ -155,15 +149,17 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     const x = (rawX - pan.x) / zoomLevel;
     const y = (rawY - pan.y) / zoomLevel;
 
-    setCurrentStroke([...currentStroke, [x, y, e.pressure || 0.5]]);
+    setCurrentStroke((prev) => (prev ? [...prev, [x, y, e.pressure || 0.5]] : [[x, y, e.pressure || 0.5]]));
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent) => {
+    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+
     if (isPanning) {
       setIsPanning(false);
     }
 
-    if (isDrawing && currentStroke && currentStroke.length > 1) {
+    if (isDrawing && currentStroke && currentStroke.length > 0) {
       const newStroke: Stroke = {
         id: 'stroke_' + Math.random().toString(36).slice(2, 7),
         points: currentStroke,
@@ -230,13 +226,17 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className={`w-full h-full relative overflow-hidden bg-dot-pattern bg-[#030704] ${
+      className={`w-full h-full relative overflow-hidden bg-black ${
         isPanning || activeTool === 'pan' || isSpacePressed ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair'
       }`}
+      style={{
+        backgroundImage: 'radial-gradient(circle, rgba(255, 255, 255, 0.25) 1.2px, transparent 1.2px)',
+        backgroundSize: '24px 24px',
+      }}
     >
-      {/* Infinite Canvas Container with Matrix Transform */}
+      {/* Infinite Canvas Container */}
       <div
-        className="w-full h-full absolute inset-0 transform-gpu"
+        className="w-full h-full absolute inset-0 transform-gpu pointer-events-none"
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoomLevel})`,
           transformOrigin: '0 0',
@@ -271,10 +271,10 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
             <div
               key={sticky.id}
               style={{ left: sticky.x, top: sticky.y }}
-              className="absolute w-60 p-4 rounded-2xl shadow-2xl border border-emerald-500/50 bg-[#07170e]/95 backdrop-blur-md group flex flex-col justify-between transition-transform duration-200 hover:scale-105 hover:z-30 font-mono glow-green-sm"
+              className="absolute w-60 p-4 rounded-2xl shadow-2xl border border-white/20 bg-[#0a150f]/95 backdrop-blur-md group flex flex-col justify-between transition-transform duration-200 hover:scale-105 hover:z-30 font-mono"
             >
-              <div className="flex items-center justify-between mb-2 pb-1 border-b border-emerald-900/60">
-                <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">
+              <div className="flex items-center justify-between mb-2 pb-1 border-b border-white/10">
+                <span className="text-[10px] uppercase font-bold text-gray-300 tracking-wider">
                   NOTE CARD
                 </span>
                 <button
@@ -282,7 +282,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
                     e.stopPropagation();
                     handleDeleteSticky(sticky.id);
                   }}
-                  className="p-1 text-emerald-400 hover:text-red-400 rounded transition-colors"
+                  className="p-1 text-gray-400 hover:text-red-400 rounded transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -291,7 +291,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
               <textarea
                 value={sticky.text}
                 onChange={(e) => handleStickyTextChange(sticky.id, e.target.value)}
-                className="w-full h-28 bg-transparent text-emerald-200 font-mono font-medium text-xs resize-none focus:outline-none placeholder-emerald-600/70"
+                className="w-full h-28 bg-transparent text-white font-mono font-medium text-xs resize-none focus:outline-none placeholder-gray-500"
                 placeholder="Write note content..."
               />
             </div>
