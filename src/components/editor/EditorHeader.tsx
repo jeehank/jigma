@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Project, PresenceUser } from '../../types';
+import type { Project, PresenceUser } from '../../types';
 import {
   ArrowLeft,
   Layout,
@@ -10,7 +10,6 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize,
-  Sparkles,
 } from 'lucide-react';
 
 interface EditorHeaderProps {
@@ -54,7 +53,6 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
 
   return (
     <header className="h-14 border-b border-white/10 glass-panel px-4 flex items-center justify-between sticky top-0 z-40">
-      {/* Left Section: Back button & Title */}
       <div className="flex items-center space-x-3">
         <button
           onClick={onBackToDashboard}
@@ -66,7 +64,6 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
 
         <div className="h-5 w-px bg-gray-800" />
 
-        {/* Project Title Editor */}
         <div className="flex items-center space-x-2">
           {project.type === 'design' ? (
             <Layout className="w-4 h-4 text-purple-400 flex-shrink-0" />
@@ -101,7 +98,6 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
         </div>
       </div>
 
-      {/* Center Section: Zoom Controls */}
       <div className="flex items-center space-x-1.5 bg-gray-900/80 p-1 border border-gray-800 rounded-xl">
         <button
           onClick={onZoomOut}
@@ -136,9 +132,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
         </button>
       </div>
 
-      {/* Right Section: Collaborators Presence & Export Button */}
       <div className="flex items-center space-x-4">
-        {/* Collaborators Avatar Stack */}
         <div className="flex items-center -space-x-2">
           {collaborators.map((c) => (
             <div
@@ -155,13 +149,11 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
           </div>
         </div>
 
-        {/* Sync Status Badge */}
         <div className="hidden sm:flex items-center space-x-1 text-[11px] text-emerald-400 font-medium">
           <CheckCircle2 className="w-3.5 h-3.5" />
           <span>Saved</span>
         </div>
 
-        {/* Export Dropdown */}
         <div className="relative">
           <button
             onClick={() => setShowExportMenu(!showExportMenu)}

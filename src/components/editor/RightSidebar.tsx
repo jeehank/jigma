@@ -1,5 +1,5 @@
 import React from 'react';
-import { BlendMode, ColorAdjustments } from '../../types';
+import type { BlendMode, ColorAdjustments } from '../../types';
 import {
   Palette,
   Sliders,
@@ -10,7 +10,6 @@ import {
   Maximize2,
   Download,
   Eye,
-  Minimize2,
   Sparkles,
 } from 'lucide-react';
 
@@ -63,7 +62,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </div>
         </div>
 
-        {/* Global Export Options */}
         <div className="space-y-2 pt-4 border-t border-gray-800">
           <h4 className="font-semibold text-white uppercase tracking-wider text-[10px]">Export Project</h4>
           <button
@@ -113,7 +111,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
   return (
     <aside className="w-80 glass-panel border-l border-white/10 p-5 space-y-6 text-xs text-gray-200 overflow-y-auto max-h-screen">
-      {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-gray-800">
         <h3 className="font-bold text-white uppercase tracking-wider text-[11px] flex items-center space-x-2">
           <Palette className="w-4 h-4 text-purple-400" />
@@ -124,7 +121,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </span>
       </div>
 
-      {/* Frame Conversion & Mask Quick Actions */}
       <div className="space-y-2">
         <h4 className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Quick Actions</h4>
         <div className="grid grid-cols-2 gap-2">
@@ -149,7 +145,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </div>
       </div>
 
-      {/* Fill, Stroke & Opacity */}
       <div className="space-y-3">
         <h4 className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Fill & Stroke</h4>
         <div className="grid grid-cols-2 gap-3">
@@ -184,7 +179,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </div>
         </div>
 
-        {/* Opacity slider */}
         <div>
           <div className="flex justify-between text-[10px] text-gray-400 mb-1">
             <span>Opacity</span>
@@ -202,7 +196,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </div>
       </div>
 
-      {/* Blend Mode Selection */}
       <div className="space-y-2">
         <label className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">
           Layer Blend Mode
@@ -220,14 +213,12 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </select>
       </div>
 
-      {/* Color Adjustments (Exposure, Tint, Temperature, etc.) */}
       <div className="space-y-4 pt-4 border-t border-gray-800">
         <h4 className="text-[10px] uppercase font-bold text-gray-400 tracking-wider flex items-center space-x-1.5">
           <Sliders className="w-3.5 h-3.5 text-indigo-400" />
           <span>Color Grading & Exposure</span>
         </h4>
 
-        {/* Exposure */}
         <div>
           <div className="flex justify-between text-[10px] text-gray-300 mb-1">
             <span className="flex items-center space-x-1">
@@ -246,7 +237,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           />
         </div>
 
-        {/* Tint (Green / Magenta) */}
         <div>
           <div className="flex justify-between text-[10px] text-gray-300 mb-1">
             <span className="flex items-center space-x-1">
@@ -265,7 +255,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           />
         </div>
 
-        {/* Temperature (Cool / Warm) */}
         <div>
           <div className="flex justify-between text-[10px] text-gray-300 mb-1">
             <span className="flex items-center space-x-1">
@@ -284,7 +273,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           />
         </div>
 
-        {/* Brightness & Contrast */}
         <div className="grid grid-cols-2 gap-3 pt-2">
           <div>
             <div className="flex justify-between text-[10px] text-gray-400 mb-1">
@@ -317,7 +305,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </div>
         </div>
 
-        {/* Saturation & Hue Shift */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <div className="flex justify-between text-[10px] text-gray-400 mb-1">
@@ -351,7 +338,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </div>
       </div>
 
-      {/* Typography settings (If text object) */}
       {selectedElement.type === 'text' && (
         <div className="space-y-3 pt-4 border-t border-gray-800">
           <h4 className="text-[10px] uppercase font-bold text-gray-400 tracking-wider flex items-center space-x-1.5">
@@ -400,7 +386,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </div>
       )}
 
-      {/* Export Selection Section */}
       <div className="space-y-2 pt-4 border-t border-gray-800">
         <h4 className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Export Selection</h4>
         <div className="grid grid-cols-3 gap-2">
