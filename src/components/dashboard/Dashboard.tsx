@@ -12,7 +12,6 @@ import {
   Clock,
   LogOut,
   FolderPlus,
-  Terminal,
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -59,21 +58,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
         />
       </div>
 
-      {/* Top Header */}
+      {/* Top Header - ONLY text saying 'Jigma' */}
       <header className="h-16 border-b border-emerald-500/30 glass-panel px-6 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center space-x-3">
-          <div className="p-2.5 bg-emerald-950 border border-emerald-500/50 rounded-xl shadow-md text-emerald-400">
-            <Terminal className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-white tracking-wider font-mono flex items-center space-x-2">
-              <span>COLLABCRAFT</span>
-              <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 rounded-full font-semibold">
-                SYSTEM
-              </span>
-            </h1>
-            <p className="text-[11px] text-emerald-500/80 font-mono">Design Board & Whiteboard Platform</p>
-          </div>
+        <div className="flex items-center">
+          <h1 className="text-2xl font-bold text-white tracking-wide">
+            Jigma
+          </h1>
         </div>
 
         <div className="flex items-center space-x-4">
@@ -92,7 +82,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               className="w-8 h-8 rounded-full border border-emerald-500/60 bg-black"
             />
             <div className="hidden sm:block text-left">
-              <p className="text-xs font-bold text-white font-mono">{user.full_name || 'Convener'}</p>
+              <p className="text-xs font-bold text-white font-mono">{user.full_name || 'User'}</p>
               <p className="text-[10px] text-emerald-400/80 truncate max-w-[140px] font-mono">{user.email}</p>
             </div>
             <button
@@ -192,7 +182,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 className="group glass-panel rounded-2xl border border-emerald-500/20 hover:border-emerald-400 transition-all duration-300 overflow-hidden flex flex-col justify-between hover:shadow-xl hover:shadow-emerald-500/10 cursor-pointer bg-[#050b07]/90"
                 onClick={() => onOpenProject(project.id)}
               >
-                {/* Real Canvas Preview Snapshot Image or Graphical Canvas Layout */}
+                {/* Real Canvas Preview Snapshot Image (NO TYPE BADGE ON TOP LEFT) */}
                 <div className="h-44 bg-black relative overflow-hidden flex items-center justify-center border-b border-emerald-900/40">
                   {project.thumbnail_url ? (
                     <img
@@ -204,12 +194,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <div className="w-full h-full p-4 flex items-center justify-center bg-gradient-to-br from-emerald-950/60 via-black to-emerald-950/40 relative">
                       <div className="w-full h-full border border-emerald-500/30 rounded-xl p-3 bg-black/60 flex flex-col justify-between">
                         <div className="flex justify-between items-center text-[10px] text-emerald-400 font-mono">
-                          <span>{project.type.toUpperCase()} PREVIEW</span>
+                          <span>PREVIEW</span>
                           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                         </div>
                         <div className="text-center py-2">
                           <p className="text-xs text-gray-300 font-mono font-medium truncate">{project.title}</p>
-                          <p className="text-[10px] text-emerald-500 font-mono mt-1">Live Canvas Data Snapshot</p>
+                          <p className="text-[10px] text-emerald-500 font-mono mt-1">Canvas Data Snapshot</p>
                         </div>
                         <div className="h-1 w-full bg-emerald-900/60 rounded overflow-hidden">
                           <div className="h-full bg-emerald-400 w-3/4" />
@@ -217,13 +207,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </div>
                     </div>
                   )}
-
-                  {/* Badge */}
-                  <span
-                    className="absolute top-3 left-3 px-2.5 py-1 text-[10px] font-mono font-bold rounded-lg uppercase tracking-wider border backdrop-blur-md bg-emerald-950/80 text-emerald-300 border-emerald-500/40"
-                  >
-                    {project.type === 'design' ? 'Design Board' : 'Whiteboard'}
-                  </span>
 
                   {/* Action Menu button */}
                   <div className="absolute top-3 right-3">
@@ -280,7 +263,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       <Clock className="w-3 h-3 text-emerald-600" />
                       <span>{new Date(project.updated_at).toLocaleDateString()}</span>
                     </span>
-                    <span className="text-emerald-400 font-bold text-[10px] uppercase">Open →</span>
+                    <span className="text-emerald-400 font-bold text-[10px] uppercase">OPEN →</span>
                   </div>
                 </div>
               </div>
