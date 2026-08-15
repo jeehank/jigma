@@ -9,7 +9,6 @@ import {
   Star,
   ArrowUpRight,
   Eye,
-  Sliders,
 } from 'lucide-react';
 
 interface DesignToolbarProps {
@@ -48,7 +47,6 @@ export const DesignToolbar: React.FC<DesignToolbarProps> = ({
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 glass-panel px-3 py-2 rounded-2xl shadow-2xl border border-white/10 flex items-center space-x-1.5 backdrop-blur-xl">
-      {/* Select Tool */}
       <button
         onClick={() => onSelectTool('select')}
         className={`p-2.5 rounded-xl transition-all ${
@@ -63,7 +61,6 @@ export const DesignToolbar: React.FC<DesignToolbarProps> = ({
 
       <div className="h-5 w-px bg-gray-800" />
 
-      {/* Frame Tool */}
       <button
         onClick={onConvertToFrame}
         className="p-2.5 text-gray-400 hover:text-purple-300 hover:bg-purple-600/20 rounded-xl transition-all flex items-center space-x-1"
@@ -74,7 +71,6 @@ export const DesignToolbar: React.FC<DesignToolbarProps> = ({
 
       <div className="h-5 w-px bg-gray-800" />
 
-      {/* Shapes Group */}
       <button
         onClick={() => onAddShape('rect')}
         className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
@@ -109,7 +105,6 @@ export const DesignToolbar: React.FC<DesignToolbarProps> = ({
 
       <div className="h-5 w-px bg-gray-800" />
 
-      {/* Text Tool */}
       <button
         onClick={onAddText}
         className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
@@ -118,7 +113,6 @@ export const DesignToolbar: React.FC<DesignToolbarProps> = ({
         <Type className="w-4 h-4" />
       </button>
 
-      {/* Image Tool */}
       <button
         onClick={() => fileInputRef.current?.click()}
         className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
@@ -136,7 +130,6 @@ export const DesignToolbar: React.FC<DesignToolbarProps> = ({
 
       <div className="h-5 w-px bg-gray-800" />
 
-      {/* Mask Tool */}
       <button
         onClick={onToggleMask}
         className="p-2.5 text-gray-400 hover:text-amber-300 hover:bg-amber-500/20 rounded-xl transition-all"

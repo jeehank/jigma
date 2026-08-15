@@ -5,13 +5,7 @@ import {
   Highlighter,
   Eraser,
   FileText,
-  Square,
-  Circle,
   Type,
-  Palette,
-  Undo2,
-  ClearAll,
-  Download,
 } from 'lucide-react';
 
 interface WhiteboardToolbarProps {
@@ -21,7 +15,7 @@ interface WhiteboardToolbarProps {
   onChangeColor: (color: string) => void;
   strokeWidth: number;
   onChangeWidth: (width: number) => void;
-  onClear: () => void;
+  onClear?: () => void;
 }
 
 const COLORS = [
@@ -42,11 +36,9 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
   onChangeColor,
   strokeWidth,
   onChangeWidth,
-  onClear,
 }) => {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 glass-panel px-4 py-2.5 rounded-2xl shadow-2xl border border-white/10 flex items-center space-x-2 backdrop-blur-xl">
-      {/* Select Tool */}
       <button
         onClick={() => onSelectTool('select')}
         className={`p-2.5 rounded-xl transition-all ${
@@ -61,7 +53,6 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
 
       <div className="h-5 w-px bg-gray-800" />
 
-      {/* Pen Tool */}
       <button
         onClick={() => onSelectTool('pen')}
         className={`p-2.5 rounded-xl transition-all ${
@@ -74,7 +65,6 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
         <Edit3 className="w-4 h-4" />
       </button>
 
-      {/* Highlighter Tool */}
       <button
         onClick={() => onSelectTool('highlighter')}
         className={`p-2.5 rounded-xl transition-all ${
@@ -87,7 +77,6 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
         <Highlighter className="w-4 h-4" />
       </button>
 
-      {/* Eraser Tool */}
       <button
         onClick={() => onSelectTool('eraser')}
         className={`p-2.5 rounded-xl transition-all ${
@@ -102,7 +91,6 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
 
       <div className="h-5 w-px bg-gray-800" />
 
-      {/* Sticky Note */}
       <button
         onClick={() => onSelectTool('sticky')}
         className={`p-2.5 rounded-xl transition-all ${
@@ -115,7 +103,6 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
         <FileText className="w-4 h-4" />
       </button>
 
-      {/* Text Block */}
       <button
         onClick={() => onSelectTool('text')}
         className={`p-2.5 rounded-xl transition-all ${
@@ -130,7 +117,6 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
 
       <div className="h-5 w-px bg-gray-800" />
 
-      {/* Color Palette Quick Picker */}
       <div className="flex items-center space-x-1 bg-gray-900/80 p-1 rounded-xl border border-gray-800">
         {COLORS.map((c) => (
           <button
@@ -144,7 +130,6 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
         ))}
       </div>
 
-      {/* Stroke Width Picker */}
       <input
         type="range"
         min="2"
