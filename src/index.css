@@ -16,7 +16,6 @@
   }
 }
 
-/* Cyber Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -32,7 +31,6 @@
   background: #34d399;
 }
 
-/* Green Dot & Grid Pattern */
 .bg-grid-pattern {
   background-size: 28px 28px;
   background-image: radial-gradient(circle, #054f31 1.2px, transparent 1.2px);
@@ -43,7 +41,6 @@
   background-image: radial-gradient(circle, #047857 1.5px, transparent 1.5px);
 }
 
-/* Cyber Green Glassmorphism styling */
 .glass-panel {
   background: rgba(5, 15, 10, 0.88);
   backdrop-filter: blur(14px);
@@ -59,7 +56,6 @@
   box-shadow: 0 0 40px rgba(0, 255, 102, 0.15);
 }
 
-/* Glowing Neon Green utilities */
 .glow-green {
   box-shadow: 0 0 20px rgba(0, 255, 102, 0.4);
 }

@@ -37,17 +37,17 @@ export type BlendMode =
   | 'luminosity';
 
 export interface ColorAdjustments {
-  exposure: number; // -100 to 100
-  tint: number; // -100 to 100 (green <-> magenta)
-  temperature: number; // -100 to 100 (cool <-> warm)
-  brightness: number; // -100 to 100
-  contrast: number; // -100 to 100
-  saturation: number; // -100 to 100
-  hueShift: number; // -180 to 180
-  blur: number; // 0 to 50
-  sepia: number; // 0 to 100
-  grayscale: number; // 0 to 100
-  invert: number; // 0 to 100
+  exposure: number;
+  tint: number;
+  temperature: number;
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  hueShift: number;
+  blur: number;
+  sepia: number;
+  grayscale: number;
+  invert: number;
 }
 
 export interface PresenceUser {

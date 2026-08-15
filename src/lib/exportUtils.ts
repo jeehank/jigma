@@ -7,9 +7,6 @@ export interface ExportOptions {
   backgroundColor?: string;
 }
 
-/**
- * Downloads a data URL as a file in the browser
- */
 export function downloadFile(dataUrl: string, filename: string) {
   const link = document.createElement('a');
   link.download = filename;
@@ -19,9 +16,6 @@ export function downloadFile(dataUrl: string, filename: string) {
   document.body.removeChild(link);
 }
 
-/**
- * Exports HTML element or HTML5 Canvas as PNG
- */
 export async function exportElementAsPng(
   element: HTMLElement | HTMLCanvasElement,
   options: ExportOptions = {}
@@ -46,7 +40,6 @@ export async function exportElementAsPng(
     }
   }
 
-  // HTML Element fallback using html2canvas
   const canvas = await html2canvas(element as HTMLElement, {
     scale,
     useCORS: true,
@@ -56,9 +49,6 @@ export async function exportElementAsPng(
   downloadFile(dataUrl, filename);
 }
 
-/**
- * Exports vector elements / SVG string as SVG file
- */
 export function exportAsSvg(svgContent: string, filename: string = 'design-export.svg') {
   const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -66,9 +56,6 @@ export function exportAsSvg(svgContent: string, filename: string = 'design-expor
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/**
- * Exports HTML element or HTML5 Canvas to PDF
- */
 export async function exportElementAsPdf(
   element: HTMLElement | HTMLCanvasElement,
   options: ExportOptions = {}
@@ -91,7 +78,6 @@ export async function exportElementAsPdf(
   const width = canvas.width;
   const height = canvas.height;
 
-  // Determine PDF orientation based on canvas aspect ratio
   const orientation = width > height ? 'landscape' : 'portrait';
   const pdf = new jsPDF({
     orientation,

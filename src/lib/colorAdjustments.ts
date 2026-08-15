@@ -14,9 +14,6 @@ export const defaultColorAdjustments: ColorAdjustments = {
   invert: 0,
 };
 
-/**
- * Computes SVG FEColorMatrix / CSS Filter string from color adjustments
- */
 export function getCssFilterString(adj: ColorAdjustments): string {
   const filters: string[] = [];
 
@@ -42,9 +39,6 @@ export function getCssFilterString(adj: ColorAdjustments): string {
   return filters.join(' ');
 }
 
-/**
- * Applies custom pixel-level ImageData filters for canvas context (Exposure, Tint, Temperature)
- */
 export function applyCanvasColorAdjustments(
   ctx: CanvasRenderingContext2D,
   width: number,
