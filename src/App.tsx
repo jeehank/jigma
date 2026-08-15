@@ -82,33 +82,37 @@ export function App() {
   }, [user]);
 
   const fetchProjects = async () => {
+    if (!user) return;
     try {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
+        .eq('user_id', user.id)
         .order('updated_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         setProjects(data as Project[]);
+        localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(data));
         return;
       }
     } catch (e) {
-      console.warn('Supabase fetch offline, using fallback store');
+      console.warn('Supabase fetch error, using user fallback store', e);
     }
 
-    const local = localStorage.getItem('figmaclone_projects');
+    const local = localStorage.getItem(`figmaclone_projects_${user.id}`);
     if (local) {
       setProjects(JSON.parse(local));
     } else {
       setProjects([]);
-      localStorage.setItem('figmaclone_projects', JSON.stringify([]));
+      localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify([]));
     }
   };
 
   const handleCreateProject = async (title: string, type: ProjectType) => {
+    if (!user) return;
     const newProj: Project = {
-      id: 'proj_' + Math.random().toString(36).slice(2, 9),
-      user_id: user?.id,
+      id: crypto.randomUUID(),
+      user_id: user.id,
       title,
       type,
       data: {},
@@ -119,34 +123,41 @@ export function App() {
     try {
       await supabase.from('projects').insert({
         id: newProj.id,
-        user_id: user?.id,
+        user_id: user.id,
         title: newProj.title,
         type: newProj.type,
         data: newProj.data,
       });
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to insert project into Supabase:', e);
+    }
 
     const updated = [newProj, ...projects];
     setProjects(updated);
-    localStorage.setItem('figmaclone_projects', JSON.stringify(updated));
+    localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
     setIsCreateModalOpen(false);
     setActiveProjectId(newProj.id);
   };
 
   const handleDeleteProject = async (id: string) => {
+    if (!user) return;
     try {
-      await supabase.from('projects').delete().eq('id', id);
-    } catch (e) {}
+      await supabase.from('projects').delete().eq('id', id).eq('user_id', user.id);
+    } catch (e) {
+      console.error('Failed to delete project from Supabase:', e);
+    }
 
     const updated = projects.filter((p) => p.id !== id);
     setProjects(updated);
-    localStorage.setItem('figmaclone_projects', JSON.stringify(updated));
+    localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
   };
 
   const handleDuplicateProject = async (project: Project) => {
+    if (!user) return;
     const duplicated: Project = {
       ...project,
-      id: 'proj_' + Math.random().toString(36).slice(2, 9),
+      id: crypto.randomUUID(),
+      user_id: user.id,
       title: `${project.title} (Copy)`,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -155,20 +166,22 @@ export function App() {
     try {
       await supabase.from('projects').insert({
         id: duplicated.id,
-        user_id: user?.id,
+        user_id: user.id,
         title: duplicated.title,
         type: duplicated.type,
         data: duplicated.data,
       });
-    } catch (e) {}
+    } catch (e) {
+      console.error('Failed to duplicate project in Supabase:', e);
+    }
 
     const updated = [duplicated, ...projects];
     setProjects(updated);
-    localStorage.setItem('figmaclone_projects', JSON.stringify(updated));
+    localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
   };
 
   const handleUpdateProjectData = async (data: any, thumbnailUrl?: string) => {
-    if (!activeProjectId) return;
+    if (!activeProjectId || !user) return;
     const updated = projects.map((p) =>
       p.id === activeProjectId
         ? {
@@ -180,7 +193,7 @@ export function App() {
         : p
     );
     setProjects(updated);
-    localStorage.setItem('figmaclone_projects', JSON.stringify(updated));
+    localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
 
     try {
       await supabase
@@ -190,24 +203,30 @@ export function App() {
           thumbnail_url: thumbnailUrl || undefined,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', activeProjectId);
-    } catch (e) {}
+        .eq('id', activeProjectId)
+        .eq('user_id', user.id);
+    } catch (e) {
+      console.error('Failed to update project data in Supabase:', e);
+    }
   };
 
   const handleUpdateTitle = async (newTitle: string) => {
-    if (!activeProjectId) return;
+    if (!activeProjectId || !user) return;
     const updated = projects.map((p) =>
       p.id === activeProjectId ? { ...p, title: newTitle } : p
     );
     setProjects(updated);
-    localStorage.setItem('figmaclone_projects', JSON.stringify(updated));
+    localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
 
     try {
       await supabase
         .from('projects')
-        .update({ title: newTitle })
-        .eq('id', activeProjectId);
-    } catch (e) {}
+        .update({ title: newTitle, updated_at: new Date().toISOString() })
+        .eq('id', activeProjectId)
+        .eq('user_id', user.id);
+    } catch (e) {
+      console.error('Failed to update title in Supabase:', e);
+    }
   };
 
   const activeProject = projects.find((p) => p.id === activeProjectId);
@@ -231,6 +250,8 @@ export function App() {
               supabase.auth.signOut();
               localStorage.removeItem('jigma_user_session');
               setUser(null);
+              setProjects([]);
+              setActiveProjectId(null);
               setIsAuthOpen(true);
             }}
           />
