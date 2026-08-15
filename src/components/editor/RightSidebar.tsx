@@ -10,7 +10,7 @@ import {
   Maximize2,
   Download,
   Eye,
-  Sparkles,
+  Trash2,
 } from 'lucide-react';
 
 interface RightSidebarProps {
@@ -18,6 +18,7 @@ interface RightSidebarProps {
   onUpdateElement: (updates: any) => void;
   onConvertToFrame: () => void;
   onToggleMask: () => void;
+  onDeleteSelected: () => void;
   onExportPng: () => void;
   onExportSvg: () => void;
   onExportPdf: () => void;
@@ -47,43 +48,44 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   onUpdateElement,
   onConvertToFrame,
   onToggleMask,
+  onDeleteSelected,
   onExportPng,
   onExportSvg,
   onExportPdf,
 }) => {
   if (!selectedElement) {
     return (
-      <aside className="w-72 glass-panel border-l border-white/10 p-5 flex flex-col justify-between text-gray-400 text-xs overflow-y-auto">
+      <aside className="w-72 glass-panel border-l border-emerald-500/30 p-5 flex flex-col justify-between text-gray-400 text-xs overflow-y-auto font-mono">
         <div>
-          <h3 className="font-semibold text-white uppercase tracking-wider text-[11px] mb-4">Properties</h3>
-          <div className="p-4 bg-gray-900/60 rounded-xl border border-gray-800 text-center">
-            <Layers className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-            <p className="text-gray-400 text-xs">Select an element on canvas to edit its properties, blend mode, and color grading.</p>
+          <h3 className="font-bold text-white uppercase tracking-wider text-[11px] mb-4">PROPERTIES</h3>
+          <div className="p-4 bg-black/60 rounded-xl border border-emerald-900/60 text-center">
+            <Layers className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
+            <p className="text-emerald-400/80 text-xs">Select an element on canvas to edit properties, blend modes, exposure, tint, or delete.</p>
           </div>
         </div>
 
-        <div className="space-y-2 pt-4 border-t border-gray-800">
-          <h4 className="font-semibold text-white uppercase tracking-wider text-[10px]">Export Project</h4>
+        <div className="space-y-2 pt-4 border-t border-emerald-900/60">
+          <h4 className="font-bold text-white uppercase tracking-wider text-[10px]">Export Project</h4>
           <button
             onClick={onExportPng}
-            className="w-full py-2 px-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg flex items-center justify-between transition-colors"
+            className="w-full py-2 px-3 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 rounded-lg flex items-center justify-between transition-colors"
           >
             <span>Export PNG</span>
-            <Download className="w-3.5 h-3.5 text-purple-400" />
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
           </button>
           <button
             onClick={onExportSvg}
-            className="w-full py-2 px-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg flex items-center justify-between transition-colors"
+            className="w-full py-2 px-3 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 rounded-lg flex items-center justify-between transition-colors"
           >
             <span>Export SVG</span>
-            <Download className="w-3.5 h-3.5 text-indigo-400" />
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
           </button>
           <button
             onClick={onExportPdf}
-            className="w-full py-2 px-3 bg-gray-800 hover:bg-gray-700 text-white rounded-lg flex items-center justify-between transition-colors"
+            className="w-full py-2 px-3 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 rounded-lg flex items-center justify-between transition-colors"
           >
             <span>Export PDF</span>
-            <Download className="w-3.5 h-3.5 text-blue-400" />
+            <Download className="w-3.5 h-3.5 text-emerald-400" />
           </button>
         </div>
       </aside>
@@ -110,69 +112,81 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   };
 
   return (
-    <aside className="w-80 glass-panel border-l border-white/10 p-5 space-y-6 text-xs text-gray-200 overflow-y-auto max-h-screen">
-      <div className="flex items-center justify-between pb-3 border-b border-gray-800">
+    <aside className="w-80 glass-panel border-l border-emerald-500/30 p-5 space-y-6 text-xs text-gray-200 overflow-y-auto max-h-screen font-mono">
+      <div className="flex items-center justify-between pb-3 border-b border-emerald-900/60">
         <h3 className="font-bold text-white uppercase tracking-wider text-[11px] flex items-center space-x-2">
-          <Palette className="w-4 h-4 text-purple-400" />
+          <Palette className="w-4 h-4 text-emerald-400" />
           <span>{selectedElement.type.toUpperCase()} Properties</span>
         </h3>
-        <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full font-mono">
+        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
           ID: {selectedElement.id.slice(0, 5)}
         </span>
       </div>
 
+      {/* Actions: To Frame, Mask, DELETE */}
       <div className="space-y-2">
-        <h4 className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Quick Actions</h4>
-        <div className="grid grid-cols-2 gap-2">
+        <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Quick Actions</h4>
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={onConvertToFrame}
-            className="py-2 px-3 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 rounded-xl flex items-center justify-center space-x-1.5 transition-all font-medium"
+            className="py-2 px-2 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/40 rounded-xl flex items-center justify-center space-x-1 transition-all text-[11px] font-bold"
           >
-            <Maximize2 className="w-3.5 h-3.5" />
-            <span>To Frame</span>
+            <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Frame</span>
           </button>
+
           <button
             onClick={onToggleMask}
-            className={`py-2 px-3 rounded-xl flex items-center justify-center space-x-1.5 transition-all font-medium border ${
+            className={`py-2 px-2 rounded-xl flex items-center justify-center space-x-1 transition-all text-[11px] font-bold border ${
               selectedElement.isMask
-                ? 'bg-amber-500/30 text-amber-200 border-amber-500/50'
-                : 'bg-gray-800 hover:bg-gray-700 text-gray-300 border-gray-700'
+                ? 'bg-emerald-500 text-black border-emerald-400'
+                : 'bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border-emerald-500/40'
             }`}
           >
             <Eye className="w-3.5 h-3.5" />
-            <span>{selectedElement.isMask ? 'Unmask' : 'Use as Mask'}</span>
+            <span>{selectedElement.isMask ? 'Mask On' : 'Mask'}</span>
+          </button>
+
+          <button
+            onClick={onDeleteSelected}
+            className="py-2 px-2 bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-500/50 rounded-xl flex items-center justify-center space-x-1 transition-all text-[11px] font-bold"
+            title="Delete active object"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete</span>
           </button>
         </div>
       </div>
 
+      {/* Fill & Stroke */}
       <div className="space-y-3">
-        <h4 className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Fill & Stroke</h4>
+        <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Fill & Stroke</h4>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-[10px] text-gray-400 mb-1">Fill Color</label>
-            <div className="flex items-center space-x-2 bg-gray-900/80 p-1.5 rounded-xl border border-gray-800">
+            <div className="flex items-center space-x-2 bg-black p-1.5 rounded-xl border border-emerald-900/60">
               <input
                 type="color"
-                value={selectedElement.fill || '#8b5cf6'}
+                value={selectedElement.fill || '#00ff66'}
                 onChange={(e) => onUpdateElement({ fill: e.target.value })}
                 className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent"
               />
-              <span className="font-mono text-[11px] text-gray-300 uppercase">
-                {selectedElement.fill || '#8b5cf6'}
+              <span className="font-mono text-[11px] text-emerald-300 uppercase">
+                {selectedElement.fill || '#00ff66'}
               </span>
             </div>
           </div>
 
           <div>
             <label className="block text-[10px] text-gray-400 mb-1">Stroke Color</label>
-            <div className="flex items-center space-x-2 bg-gray-900/80 p-1.5 rounded-xl border border-gray-800">
+            <div className="flex items-center space-x-2 bg-black p-1.5 rounded-xl border border-emerald-900/60">
               <input
                 type="color"
                 value={selectedElement.stroke || '#ffffff'}
                 onChange={(e) => onUpdateElement({ stroke: e.target.value })}
                 className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent"
               />
-              <span className="font-mono text-[11px] text-gray-300 uppercase">
+              <span className="font-mono text-[11px] text-emerald-300 uppercase">
                 {selectedElement.stroke || '#ffffff'}
               </span>
             </div>
@@ -191,19 +205,20 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             step="0.05"
             value={selectedElement.opacity ?? 1}
             onChange={(e) => onUpdateElement({ opacity: parseFloat(e.target.value) })}
-            className="w-full accent-purple-500 bg-gray-800 rounded-lg cursor-pointer"
+            className="w-full accent-emerald-400 bg-black rounded-lg cursor-pointer"
           />
         </div>
       </div>
 
+      {/* Layer Blend Mode */}
       <div className="space-y-2">
-        <label className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+        <label className="block text-[10px] uppercase font-bold text-emerald-400 tracking-wider">
           Layer Blend Mode
         </label>
         <select
           value={selectedElement.blendMode || 'normal'}
           onChange={(e) => onUpdateElement({ blendMode: e.target.value as BlendMode })}
-          className="w-full px-3 py-2 bg-gray-900 border border-gray-800 rounded-xl text-white text-xs focus:outline-none focus:border-purple-500 font-medium"
+          className="w-full px-3 py-2 bg-black border border-emerald-900/80 rounded-xl text-emerald-300 text-xs focus:outline-none focus:border-emerald-400 font-bold"
         >
           {BLEND_MODES.map((b) => (
             <option key={b.value} value={b.value}>
@@ -213,16 +228,17 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </select>
       </div>
 
-      <div className="space-y-4 pt-4 border-t border-gray-800">
-        <h4 className="text-[10px] uppercase font-bold text-gray-400 tracking-wider flex items-center space-x-1.5">
-          <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+      {/* Color Grading & Exposure */}
+      <div className="space-y-4 pt-4 border-t border-emerald-900/60">
+        <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center space-x-1.5">
+          <Sliders className="w-3.5 h-3.5 text-emerald-400" />
           <span>Color Grading & Exposure</span>
         </h4>
 
         <div>
           <div className="flex justify-between text-[10px] text-gray-300 mb-1">
             <span className="flex items-center space-x-1">
-              <Sun className="w-3 h-3 text-amber-400" />
+              <Sun className="w-3 h-3 text-emerald-400" />
               <span>Exposure</span>
             </span>
             <span className="font-mono">{adjustments.exposure}</span>
@@ -233,16 +249,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             max="100"
             value={adjustments.exposure}
             onChange={(e) => handleAdjustmentChange('exposure', parseInt(e.target.value))}
-            className="w-full accent-amber-400 bg-gray-800 rounded-lg cursor-pointer"
+            className="w-full accent-emerald-400 bg-black rounded-lg cursor-pointer"
           />
         </div>
 
         <div>
           <div className="flex justify-between text-[10px] text-gray-300 mb-1">
-            <span className="flex items-center space-x-1">
-              <Sparkles className="w-3 h-3 text-emerald-400" />
-              <span>Tint (Green / Magenta)</span>
-            </span>
+            <span>Tint (Green / Magenta)</span>
             <span className="font-mono">{adjustments.tint}</span>
           </div>
           <input
@@ -251,14 +264,14 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             max="100"
             value={adjustments.tint}
             onChange={(e) => handleAdjustmentChange('tint', parseInt(e.target.value))}
-            className="w-full accent-emerald-400 bg-gray-800 rounded-lg cursor-pointer"
+            className="w-full accent-emerald-400 bg-black rounded-lg cursor-pointer"
           />
         </div>
 
         <div>
           <div className="flex justify-between text-[10px] text-gray-300 mb-1">
             <span className="flex items-center space-x-1">
-              <Thermometer className="w-3 h-3 text-red-400" />
+              <Thermometer className="w-3 h-3 text-emerald-400" />
               <span>Temperature (Cool / Warm)</span>
             </span>
             <span className="font-mono">{adjustments.temperature}</span>
@@ -269,7 +282,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             max="100"
             value={adjustments.temperature}
             onChange={(e) => handleAdjustmentChange('temperature', parseInt(e.target.value))}
-            className="w-full accent-red-400 bg-gray-800 rounded-lg cursor-pointer"
+            className="w-full accent-emerald-400 bg-black rounded-lg cursor-pointer"
           />
         </div>
 
@@ -285,7 +298,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               max="100"
               value={adjustments.brightness}
               onChange={(e) => handleAdjustmentChange('brightness', parseInt(e.target.value))}
-              className="w-full accent-purple-400 bg-gray-800 rounded-lg cursor-pointer"
+              className="w-full accent-emerald-400 bg-black rounded-lg cursor-pointer"
             />
           </div>
 
@@ -300,7 +313,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               max="100"
               value={adjustments.contrast}
               onChange={(e) => handleAdjustmentChange('contrast', parseInt(e.target.value))}
-              className="w-full accent-purple-400 bg-gray-800 rounded-lg cursor-pointer"
+              className="w-full accent-emerald-400 bg-black rounded-lg cursor-pointer"
             />
           </div>
         </div>
@@ -317,7 +330,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               max="100"
               value={adjustments.saturation}
               onChange={(e) => handleAdjustmentChange('saturation', parseInt(e.target.value))}
-              className="w-full accent-indigo-400 bg-gray-800 rounded-lg cursor-pointer"
+              className="w-full accent-emerald-400 bg-black rounded-lg cursor-pointer"
             />
           </div>
 
@@ -332,16 +345,16 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               max="180"
               value={adjustments.hueShift}
               onChange={(e) => handleAdjustmentChange('hueShift', parseInt(e.target.value))}
-              className="w-full accent-teal-400 bg-gray-800 rounded-lg cursor-pointer"
+              className="w-full accent-emerald-400 bg-black rounded-lg cursor-pointer"
             />
           </div>
         </div>
       </div>
 
       {selectedElement.type === 'text' && (
-        <div className="space-y-3 pt-4 border-t border-gray-800">
-          <h4 className="text-[10px] uppercase font-bold text-gray-400 tracking-wider flex items-center space-x-1.5">
-            <Type className="w-3.5 h-3.5 text-purple-400" />
+        <div className="space-y-3 pt-4 border-t border-emerald-900/60">
+          <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center space-x-1.5">
+            <Type className="w-3.5 h-3.5 text-emerald-400" />
             <span>Typography</span>
           </h4>
 
@@ -351,7 +364,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               type="text"
               value={selectedElement.text || ''}
               onChange={(e) => onUpdateElement({ text: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-900 border border-gray-800 rounded-xl text-white text-xs focus:outline-none focus:border-purple-500"
+              className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-400 font-mono"
             />
           </div>
 
@@ -364,7 +377,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 max="200"
                 value={selectedElement.fontSize || 24}
                 onChange={(e) => onUpdateElement({ fontSize: parseInt(e.target.value) || 24 })}
-                className="w-full px-3 py-2 bg-gray-900 border border-gray-800 rounded-xl text-white text-xs focus:outline-none focus:border-purple-500"
+                className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-400 font-mono"
               />
             </div>
 
@@ -373,7 +386,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               <select
                 value={selectedElement.fontWeight || '400'}
                 onChange={(e) => onUpdateElement({ fontWeight: e.target.value })}
-                className="w-full px-3 py-2 bg-gray-900 border border-gray-800 rounded-xl text-white text-xs focus:outline-none focus:border-purple-500"
+                className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-emerald-300 text-xs focus:outline-none focus:border-emerald-400 font-mono"
               >
                 <option value="300">Light</option>
                 <option value="400">Regular</option>
@@ -385,33 +398,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </div>
         </div>
       )}
-
-      <div className="space-y-2 pt-4 border-t border-gray-800">
-        <h4 className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Export Selection</h4>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            onClick={onExportPng}
-            className="py-2 px-2 bg-gray-800 hover:bg-gray-700 text-white text-[11px] font-medium rounded-lg flex flex-col items-center justify-center space-y-1 transition-colors"
-          >
-            <Download className="w-3 h-3 text-purple-400" />
-            <span>PNG</span>
-          </button>
-          <button
-            onClick={onExportSvg}
-            className="py-2 px-2 bg-gray-800 hover:bg-gray-700 text-white text-[11px] font-medium rounded-lg flex flex-col items-center justify-center space-y-1 transition-colors"
-          >
-            <Download className="w-3 h-3 text-indigo-400" />
-            <span>SVG</span>
-          </button>
-          <button
-            onClick={onExportPdf}
-            className="py-2 px-2 bg-gray-800 hover:bg-gray-700 text-white text-[11px] font-medium rounded-lg flex flex-col items-center justify-center space-y-1 transition-colors"
-          >
-            <Download className="w-3 h-3 text-blue-400" />
-            <span>PDF</span>
-          </button>
-        </div>
-      </div>
     </aside>
   );
 };
