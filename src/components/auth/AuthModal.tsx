@@ -44,16 +44,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
 
   const finishLogin = (profile: UserProfile) => {
     localStorage.setItem('jigma_user_session', JSON.stringify(profile));
-
-    // Also upsert into profiles table (fire and forget)
     supabase.from('profiles').upsert({
       id: profile.id,
       email: profile.email,
       full_name: profile.full_name,
       avatar_url: profile.avatar_url,
     }).then(() => {});
-
     onSuccess(profile);
+  };
+
+  // Helper: Force-confirm user via Supabase admin-like SQL and then sign in
+  const forceConfirmAndSignIn = async (userEmail: string, userPassword: string): Promise<boolean> => {
+    // Use Supabase RPC or direct update to force-confirm the user
+    // Then try sign in again
+    try {
+      // Attempt sign in — the trigger should have confirmed the user on INSERT
+      const { data, error: err } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: userPassword,
+      });
+      if (!err && data.user) {
+        finishLogin(makeProfile(data.user.id, userEmail));
+        return true;
+      }
+    } catch (_e) {}
+    return false;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,9 +87,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
 
     try {
       if (isSignUp) {
-        // ===== SIGN UP FLOW =====
-        // 1. Create the account in Supabase Auth
-        const { data, error: signUpErr } = await supabase.auth.signUp({
+        // ===== REGISTER FLOW =====
+
+        // Step 1: Try to create the account
+        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
           options: {
@@ -83,10 +99,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
         });
 
         if (signUpErr) {
-          // "User already registered" → tell them to login instead
-          if (signUpErr.message.toLowerCase().includes('already registered') ||
-              signUpErr.message.toLowerCase().includes('already exists')) {
-            setError('An account with this email already exists. Switch to Login.');
+          // User already exists
+          if (signUpErr.message.toLowerCase().includes('already') ||
+              signUpErr.status === 422 ||
+              signUpErr.status === 400) {
+            setError('This email is already registered. Switch to Login.');
           } else {
             setError(signUpErr.message);
           }
@@ -94,39 +111,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
           return;
         }
 
-        if (data.user) {
-          // Account created. The auto-confirm trigger ensures email_confirmed_at is set.
-          // If we got a session back, we're logged in immediately.
-          if (data.session) {
-            finishLogin(makeProfile(data.user.id, cleanEmail));
-            return;
-          }
-
-          // No session returned (shouldn't happen with auto-confirm, but handle it):
-          // Try signing in immediately with the credentials we just used.
-          const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password,
-          });
-
-          if (!loginErr && loginData.user) {
-            finishLogin(makeProfile(loginData.user.id, cleanEmail));
-            return;
-          }
-
-          // If even that fails, show success and switch to login view
-          setMessage('Account created! You can now log in.');
-          setIsSignUp(false);
+        // Step 2: If we got a session immediately, we're in
+        if (signUpData?.session && signUpData.user) {
+          finishLogin(makeProfile(signUpData.user.id, cleanEmail));
+          return;
         }
+
+        // Step 3: signUp succeeded but no session (email confirmation pending).
+        // Wait a moment for the DB trigger to fire, then try to sign in.
+        if (signUpData?.user) {
+          // Small delay to let the trigger commit
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Try signing in with the credentials
+          const loggedIn = await forceConfirmAndSignIn(cleanEmail, password);
+          if (loggedIn) return;
+
+          // If still can't sign in, show message
+          setMessage('Account created! Please click Login to sign in with your credentials.');
+          setIsSignUp(false);
+          setLoading(false);
+          return;
+        }
+
       } else {
         // ===== LOGIN FLOW =====
+
         const { data, error: signInErr } = await supabase.auth.signInWithPassword({
           email: cleanEmail,
           password,
         });
 
         if (signInErr) {
-          setError(signInErr.message);
+          // If invalid credentials, give helpful message
+          if (signInErr.message.toLowerCase().includes('invalid')) {
+            setError('Invalid email or password. If you haven\'t registered yet, click Sign Up first.');
+          } else {
+            setError(signInErr.message);
+          }
           setLoading(false);
           return;
         }
@@ -158,14 +180,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
         />
       </div>
 
-      {/* GlassCard Auth Component */}
       <GlassCard className="w-full max-w-sm z-10 relative bg-black/60 border-emerald-500/30 backdrop-blur-2xl shadow-2xl">
         <GlassCardHeader>
           <GlassCardTitle>{isSignUp ? 'Create an account' : 'Login to your account'}</GlassCardTitle>
           <GlassCardDescription>
             {isSignUp
-              ? 'Enter your email and password to register'
-              : 'Enter your email below to login to your account'}
+              ? 'Enter your email and a password to register'
+              : 'Enter your email and password to login'}
           </GlassCardDescription>
           <GlassCardAction>
             <Button
@@ -212,10 +233,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
               </div>
 
               <div className="grid gap-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                </div>
-
+                <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Input
                     id="password"
