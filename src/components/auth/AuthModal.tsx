@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import type { UserProfile } from '../../types';
+import Scanner from '../common/Scanner';
 import {
   GlassCard,
   GlassCardHeader,
@@ -40,7 +41,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
 
     try {
       if (isSignUp) {
-        // Sign Up with Supabase Auth
         const { data, error: signUpErr } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -49,7 +49,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
         if (signUpErr) throw signUpErr;
 
         if (data.user) {
-          // Store profile in Supabase profiles table
           await supabase.from('profiles').upsert({
             id: data.user.id,
             email: data.user.email || email,
@@ -65,13 +64,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
               avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=${data.user.id}`,
             });
           } else {
-            // Email confirmation required or user created
             setMessage('Account created successfully! You can now log in with your email and password.');
             setIsSignUp(false);
           }
         }
       } else {
-        // Sign In with Supabase Auth
         const { data, error: signInErr } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
@@ -106,8 +103,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
   };
 
   return (
-    <div className="bg-[url(https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2670&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D)] w-full h-screen flex items-center justify-center p-4 bg-cover bg-center">
-      <GlassCard className="w-full max-w-sm">
+    <div className="w-full h-screen flex items-center justify-center p-4 bg-[#030704] relative overflow-hidden font-sans">
+      {/* Animated WebGL Scanner Background (same as recent projects page) */}
+      <div className="absolute inset-0 z-0 opacity-70 pointer-events-auto">
+        <Scanner
+          color1="#00ff66"
+          color2="#042f1a"
+          color3="#22c55e"
+          speed={0.5}
+          sweepSpeed={0.25}
+          glow={0.3}
+          bandDensity={12}
+        />
+      </div>
+
+      {/* GlassCard Auth Component */}
+      <GlassCard className="w-full max-w-sm z-10 relative bg-black/60 border-emerald-500/30 backdrop-blur-2xl shadow-2xl">
         <GlassCardHeader>
           <GlassCardTitle>{isSignUp ? 'Create an account' : 'Login to your account'}</GlassCardTitle>
           <GlassCardDescription>
