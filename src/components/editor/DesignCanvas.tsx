@@ -51,7 +51,6 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       }));
       onUpdateElementsList(layers);
 
-      // Generate Live Thumbnail Screenshot of the canvas
       let thumbUrl = '';
       try {
         thumbUrl = canvas.toDataURL({ format: 'png', multiplier: 0.3 });
@@ -94,7 +93,6 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       });
     };
 
-    // Load initial data if present (NO hardcoded starter cards if empty!)
     if (initialData && Object.keys(initialData).length > 0 && initialData.objects && initialData.objects.length > 0) {
       canvas.loadFromJSON(initialData, () => {
         canvas.renderAll();
@@ -109,7 +107,6 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     canvas.on('object:added', updateLayersList);
     canvas.on('object:removed', updateLayersList);
 
-    // Keyboard Shortcuts for Deleting elements
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && !isEditingText(canvas)) {
         deleteActiveElement();
@@ -146,7 +143,6 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     }
   }, [zoomLevel]);
 
-  // Spacebar Panning
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space' && !isSpacePressed) {
@@ -174,7 +170,6 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     };
   }, [isSpacePressed]);
 
-  // Delete Active Object
   const deleteActiveElement = () => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;

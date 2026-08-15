@@ -123,7 +123,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </span>
       </div>
 
-      {/* Actions: To Frame, Mask, DELETE */}
       <div className="space-y-2">
         <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Quick Actions</h4>
         <div className="grid grid-cols-3 gap-2">
@@ -158,7 +157,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </div>
       </div>
 
-      {/* Fill & Stroke */}
       <div className="space-y-3">
         <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Fill & Stroke</h4>
         <div className="grid grid-cols-2 gap-3">
@@ -210,7 +208,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </div>
       </div>
 
-      {/* Layer Blend Mode */}
       <div className="space-y-2">
         <label className="block text-[10px] uppercase font-bold text-emerald-400 tracking-wider">
           Layer Blend Mode
@@ -228,7 +225,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </select>
       </div>
 
-      {/* Color Grading & Exposure */}
       <div className="space-y-4 pt-4 border-t border-emerald-900/60">
         <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center space-x-1.5">
           <Sliders className="w-3.5 h-3.5 text-emerald-400" />

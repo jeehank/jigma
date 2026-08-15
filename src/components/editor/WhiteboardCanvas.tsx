@@ -40,7 +40,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Infinite Canvas Pan Coordinates
   const [pan, setPan] = useState({ x: initialData?.pan?.x || 0, y: initialData?.pan?.y || 0 });
   const [isPanning, setIsPanning] = useState(false);
   const startPanRef = useRef({ x: 0, y: 0 });
@@ -52,7 +51,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
 
-  // Keyboard Spacebar for infinite panning
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') setIsSpacePressed(true);
@@ -68,7 +66,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     };
   }, []);
 
-  // Sync state upward & generate thumbnail screenshot
   useEffect(() => {
     const timer = setTimeout(() => {
       const svgThumb = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="#0a0a0a"/><g transform="scale(0.3)"><path d="M50 50 L150 150 L250 80" stroke="#00ff66" stroke-width="8" fill="none"/></g></svg>`;
@@ -79,7 +76,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     return () => clearTimeout(timer);
   }, [strokes, stickyNotes, pan]);
 
-  // Infinite Mouse Wheel Pan & Scroll Handler
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     setPan((prev) => ({
@@ -88,12 +84,10 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     }));
   };
 
-  // Pointer Handlers for Drawing & Panning
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!containerRef.current) return;
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
 
-    // Middle Click or Pan tool or Spacebar -> Start Panning
     if (e.button === 1 || activeTool === 'pan' || isSpacePressed) {
       setIsPanning(true);
       startPanRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
@@ -104,7 +98,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     const rawX = e.clientX - rect.left;
     const rawY = e.clientY - rect.top;
 
-    // Convert raw mouse coordinates into Infinite Pan space
     const x = (rawX - pan.x) / zoomLevel;
     const y = (rawY - pan.y) / zoomLevel;
 
@@ -234,7 +227,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         backgroundSize: '24px 24px',
       }}
     >
-      {/* Infinite Canvas Container */}
       <div
         className="w-full h-full absolute inset-0 transform-gpu pointer-events-none"
         style={{
@@ -242,7 +234,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
           transformOrigin: '0 0',
         }}
       >
-        {/* SVG Layer for Freehand Pen Strokes */}
         <svg className="w-[10000px] h-[10000px] absolute -top-[5000px] -left-[5000px] pointer-events-none z-10">
           {strokes.map((st) => (
             <path
@@ -265,7 +256,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
           )}
         </svg>
 
-        {/* Sticky Notes HTML Layer */}
         <div className="absolute inset-0 z-20 pointer-events-auto">
           {stickyNotes.map((sticky) => (
             <div
