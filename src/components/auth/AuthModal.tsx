@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { UserProfile } from '../../types';
+import type { UserProfile } from '../../types';
 import { LogIn, UserPlus, Sparkles, Mail, Lock, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -39,7 +39,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
         if (signUpErr) throw signUpErr;
 
         if (data.user) {
-          // Insert profile record into Supabase profiles table
           await supabase.from('profiles').upsert({
             id: data.user.id,
             email: data.user.email || email,
@@ -96,7 +95,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onSuccess }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
       <div className="w-full max-w-md glass-modal rounded-2xl p-8 shadow-2xl border border-white/10 relative overflow-hidden">
-        {/* Ambient background glow */}
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
 

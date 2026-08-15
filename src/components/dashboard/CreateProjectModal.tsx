@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ProjectType } from '../../types';
+import type { ProjectType } from '../../types';
 import { Layout, Edit3, X, ArrowRight, Layers, Sliders, Palette, FileText, Download } from 'lucide-react';
 
 interface CreateProjectModalProps {
@@ -28,7 +28,6 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
       <div className="w-full max-w-2xl glass-modal rounded-3xl p-8 shadow-2xl border border-white/10 relative overflow-hidden">
-        {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute top-6 right-6 p-2 text-gray-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
@@ -58,7 +57,6 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Design Board Card */}
             <div
               onClick={() => setSelectedType('design')}
               className={`cursor-pointer rounded-2xl p-5 border-2 transition-all relative overflow-hidden flex flex-col justify-between ${
@@ -105,7 +103,6 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               </div>
             </div>
 
-            {/* Whiteboard Card */}
             <div
               onClick={() => setSelectedType('whiteboard')}
               className={`cursor-pointer rounded-2xl p-5 border-2 transition-all relative overflow-hidden flex flex-col justify-between ${
