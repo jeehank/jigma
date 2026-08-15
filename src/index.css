@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #0f1117;
+    color: #f3f4f6;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #181b24;
+}
+::-webkit-scrollbar-thumb {
+  background: #2d3345;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #404863;
+}
+
+/* Dot grid background for board */
+.bg-grid-pattern {
+  background-size: 24px 24px;
+  background-image: radial-gradient(circle, #2a2f42 1px, transparent 1px);
+}
+
+.bg-dot-pattern {
+  background-size: 16px 16px;
+  background-image: radial-gradient(circle, #333a50 1.2px, transparent 1.2px);
+}
+
+/* Glassmorphism panel styling */
+.glass-panel {
+  background: rgba(22, 26, 38, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-modal {
+  background: rgba(18, 21, 31, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Custom canvas cursor styling */
+.canvas-cursor-draw {
+  cursor: crosshair;
+}
+.canvas-cursor-pan {
+  cursor: grab;
+}
+.canvas-cursor-panning {
+  cursor: grabbing;
+}
