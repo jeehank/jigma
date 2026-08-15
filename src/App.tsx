@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
-import { UserProfile, Project, ProjectType } from './types';
+import type { UserProfile, Project, ProjectType } from './types';
 import { AuthModal } from './components/auth/AuthModal';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { CreateProjectModal } from './components/dashboard/CreateProjectModal';
@@ -19,7 +19,6 @@ export function App() {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Editor states
   const [zoomLevel, setZoomLevel] = useState(1);
   const [activeDesignTool, setActiveDesignTool] = useState('select');
   const [activeWhiteboardTool, setActiveWhiteboardTool] = useState<
@@ -30,7 +29,6 @@ export function App() {
   const [selectedElement, setSelectedElement] = useState<any | null>(null);
   const [elementsList, setElementsList] = useState<any[]>([]);
 
-  // Check Supabase Auth Session on mount
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -62,7 +60,6 @@ export function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Fetch / Sync Projects from Supabase and LocalStorage
   useEffect(() => {
     fetchProjects();
   }, [user]);
@@ -82,12 +79,10 @@ export function App() {
       console.warn('Supabase offline or fetching failed, using fallback store');
     }
 
-    // Fallback to local storage
     const local = localStorage.getItem('figmaclone_projects');
     if (local) {
       setProjects(JSON.parse(local));
     } else {
-      // Seed starter project
       const starterProjects: Project[] = [
         {
           id: 'proj_starter_design',
@@ -122,7 +117,6 @@ export function App() {
       updated_at: new Date().toISOString(),
     };
 
-    // Save to Supabase
     try {
       await supabase.from('projects').insert({
         id: newProj.id,
@@ -131,9 +125,7 @@ export function App() {
         type: newProj.type,
         data: newProj.data,
       });
-    } catch (e) {
-      console.warn('Saved locally');
-    }
+    } catch (e) {}
 
     const updated = [newProj, ...projects];
     setProjects(updated);
@@ -212,12 +204,10 @@ export function App() {
 
   const activeProject = projects.find((p) => p.id === activeProjectId);
 
-  // If user is not authenticated and auth modal is open
   if (!user && isAuthOpen) {
     return <AuthModal isOpen={true} onSuccess={(u) => { setUser(u); setIsAuthOpen(false); }} />;
   }
 
-  // Dashboard view
   if (!activeProject) {
     return (
       <>
@@ -246,10 +236,8 @@ export function App() {
     );
   }
 
-  // Workspace / Editor view (Design Board vs Whiteboard)
   return (
     <div className="h-screen w-screen flex flex-col bg-[#0d0f17] text-white overflow-hidden select-none">
-      {/* Editor Top Navigation Header */}
       <EditorHeader
         project={activeProject}
         onUpdateTitle={handleUpdateTitle}
@@ -294,23 +282,18 @@ export function App() {
         }
       />
 
-      {/* Main Canvas Area */}
       <div className="flex-1 flex relative overflow-hidden">
-        {/* Left Sidebar (Design Board layers manager) */}
         {activeProject.type === 'design' && (
           <LeftSidebar
             elements={elementsList}
             selectedId={selectedElement?.id || null}
-            onSelectElement={(id) => {
-              // Select on canvas
-            }}
-            onDeleteElement={(id) => {}}
-            onToggleVisibility={(id) => {}}
-            onToggleLock={(id) => {}}
+            onSelectElement={() => {}}
+            onDeleteElement={() => {}}
+            onToggleVisibility={() => {}}
+            onToggleLock={() => {}}
           />
         )}
 
-        {/* Center Canvas */}
         <div className="flex-1 relative h-full">
           {activeProject.type === 'design' ? (
             <>
@@ -349,13 +332,11 @@ export function App() {
                 onChangeColor={setWhiteboardColor}
                 strokeWidth={whiteboardWidth}
                 onChangeWidth={setWhiteboardWidth}
-                onClear={() => {}}
               />
             </>
           )}
         </div>
 
-        {/* Right Sidebar (Design Board properties & color grading inspector) */}
         {activeProject.type === 'design' && (
           <RightSidebar
             selectedElement={selectedElement}
