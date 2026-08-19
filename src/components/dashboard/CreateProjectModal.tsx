@@ -6,15 +6,21 @@ interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreate: (title: string, type: ProjectType) => void;
+  defaultType?: ProjectType;
 }
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   isOpen,
   onClose,
   onCreate,
+  defaultType = 'design',
 }) => {
-  const [selectedType, setSelectedType] = useState<ProjectType>('design');
+  const [selectedType, setSelectedType] = useState<ProjectType>(defaultType);
   const [title, setTitle] = useState('');
+
+  React.useEffect(() => {
+    if (defaultType) setSelectedType(defaultType);
+  }, [defaultType, isOpen]);
 
   if (!isOpen) return null;
 
