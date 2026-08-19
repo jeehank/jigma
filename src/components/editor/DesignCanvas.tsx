@@ -178,15 +178,22 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
     const initCanvasWithData = async () => {
       isLoadingRef.current = true;
+      let dataToLoad = initialData;
+      if (typeof dataToLoad === 'string') {
+        try {
+          dataToLoad = JSON.parse(dataToLoad);
+        } catch (e) {}
+      }
+
       if (
-        initialData &&
-        typeof initialData === 'object' &&
-        Object.keys(initialData).length > 0 &&
-        initialData.objects &&
-        initialData.objects.length > 0
+        dataToLoad &&
+        typeof dataToLoad === 'object' &&
+        Object.keys(dataToLoad).length > 0 &&
+        dataToLoad.objects &&
+        dataToLoad.objects.length > 0
       ) {
         try {
-          await canvas.loadFromJSON(initialData);
+          await canvas.loadFromJSON(dataToLoad);
           canvas.getObjects().forEach((obj) => {
             if ((obj as any).adjustments) {
               applyFiltersToObject(obj, (obj as any).adjustments);
@@ -203,7 +210,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
       setTimeout(() => {
         isLoadingRef.current = false;
-      }, 250);
+      }, 300);
     };
 
     initCanvasWithData();
@@ -448,21 +455,75 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
-    fabric.FabricImage.fromURL(url).then((img) => {
-      const center = canvas.getVpCenter();
-      img.scaleToWidth(320);
-      img.set({
-        left: center.x - 160,
-        top: center.y - 120,
+    const imgElement = new Image();
+    imgElement.crossOrigin = 'anonymous';
+    imgElement.onload = () => {
+      let width = imgElement.naturalWidth || imgElement.width || 800;
+      let height = imgElement.naturalHeight || imgElement.height || 600;
+      const maxDim = 1400;
+
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      const offscreen = document.createElement('canvas');
+      offscreen.width = width;
+      offscreen.height = height;
+      const ctx = offscreen.getContext('2d');
+
+      let finalUrl = url;
+      if (ctx) {
+        ctx.drawImage(imgElement, 0, 0, width, height);
+        try {
+          finalUrl = offscreen.toDataURL('image/jpeg', 0.88);
+        } catch (e) {
+          finalUrl = url;
+        }
+      }
+
+      fabric.FabricImage.fromURL(finalUrl).then((img) => {
+        const center = canvas.getVpCenter();
+        img.scaleToWidth(320);
+        img.set({
+          left: center.x - 160,
+          top: center.y - 120,
+        });
+        (img as any).customName = 'Uploaded Image';
+        (img as any).id = 'obj_' + Math.random().toString(36).slice(2, 7);
+        (img as any).src = finalUrl;
+        canvas.add(img);
+        canvas.setActiveObject(img);
+        canvas.renderAll();
+        updateLayersList(false);
       });
-      (img as any).customName = 'Uploaded Image';
-      (img as any).id = 'obj_' + Math.random().toString(36).slice(2, 7);
-      (img as any).src = url;
-      canvas.add(img);
-      canvas.setActiveObject(img);
-      canvas.renderAll();
-      updateLayersList(false);
-    });
+    };
+
+    imgElement.onerror = () => {
+      // Fallback direct URL loading if element fails
+      fabric.FabricImage.fromURL(url).then((img) => {
+        const center = canvas.getVpCenter();
+        img.scaleToWidth(320);
+        img.set({
+          left: center.x - 160,
+          top: center.y - 120,
+        });
+        (img as any).customName = 'Uploaded Image';
+        (img as any).id = 'obj_' + Math.random().toString(36).slice(2, 7);
+        (img as any).src = url;
+        canvas.add(img);
+        canvas.setActiveObject(img);
+        canvas.renderAll();
+        updateLayersList(false);
+      });
+    };
+
+    imgElement.src = url;
   };
 
   const convertToFrame = () => {

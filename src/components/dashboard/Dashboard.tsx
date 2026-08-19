@@ -230,18 +230,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <Clock className={`w-4 h-4 ${sidebarView === 'recents' ? 'text-emerald-400' : 'text-gray-400'}`} />
               <span>Recents</span>
             </button>
-
-            <button
-              onClick={() => setSidebarView('community')}
-              className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
-                sidebarView === 'community'
-                  ? 'bg-[#1d2b23] text-emerald-300 shadow-sm border border-emerald-500/20'
-                  : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
-              }`}
-            >
-              <Globe className={`w-4 h-4 ${sidebarView === 'community' ? 'text-emerald-400' : 'text-gray-400'}`} />
-              <span>Community</span>
-            </button>
           </div>
 
           {/* Team / Workspace Section Header */}
@@ -431,57 +419,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* Scrollable Viewport */}
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          {/* COMMUNITY VIEW */}
-          {sidebarView === 'community' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-bold text-white font-syne flex items-center space-x-2">
-                    <Globe className="w-5 h-5 text-emerald-400" />
-                    <span>Jigma Community Hub</span>
-                  </h2>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Explore curated community UI kits, wireframes, and design systems.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5">
-                {COMMUNITY_TEMPLATES.map((tmpl) => (
-                  <div
-                    key={tmpl.id}
-                    className="p-5 rounded-2xl bg-[#111814]/90 border border-white/[0.08] hover:border-emerald-500/40 transition-all flex flex-col justify-between space-y-4"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-500/30">
-                          {tmpl.type}
-                        </span>
-                        <span className="text-xs text-gray-400 flex items-center space-x-1">
-                          <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                          <span>{tmpl.likes}</span>
-                        </span>
-                      </div>
-                      <h3 className="text-sm font-bold text-white font-syne">{tmpl.title}</h3>
-                      <p className="text-xs text-gray-400 mt-1 font-jakarta">{tmpl.description}</p>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-white/[0.06]">
-                      <span className="text-[11px] text-gray-500">By {tmpl.author}</span>
-                      <button
-                        onClick={() => onCreateProjectClick(tmpl.type)}
-                        className="px-3 py-1 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold rounded-lg transition-colors flex items-center space-x-1"
-                      >
-                        <span>Clone</span>
-                        <ArrowUpRight className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* RESOURCES VIEW */}
           {sidebarView === 'resources' && (
             <div className="space-y-6">
