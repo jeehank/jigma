@@ -151,7 +151,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     } catch (e) {}
 
     isSelfChangeRef.current = true;
-    const json = canvas.toJSON(['id', 'customName', 'isFrame', 'isMask', 'adjustments', 'locked', 'selectable']);
+    const json = (canvas as any).toObject(['id', 'customName', 'isFrame', 'isMask', 'adjustments', 'locked', 'selectable']);
     onChangeData(json, thumbUrl);
     setTimeout(() => {
       isSelfChangeRef.current = false;
