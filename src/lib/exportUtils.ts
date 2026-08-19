@@ -70,7 +70,7 @@ export async function exportElementAsPdf(
     canvas = await html2canvas(element as HTMLElement, {
       scale: options.scale || 2,
       useCORS: true,
-      backgroundColor: options.backgroundColor || '#ffffff',
+      backgroundColor: options.backgroundColor || '#030704',
     });
   }
 
@@ -88,3 +88,15 @@ export async function exportElementAsPdf(
   pdf.addImage(imgData, 'PNG', 0, 0, width, height);
   pdf.save(filename);
 }
+
+export function exportDataUrlAsPdf(dataUrl: string, width: number, height: number, filename: string = 'frame-export.pdf') {
+  const orientation = width > height ? 'landscape' : 'portrait';
+  const pdf = new jsPDF({
+    orientation,
+    unit: 'px',
+    format: [width, height],
+  });
+  pdf.addImage(dataUrl, 'PNG', 0, 0, width, height);
+  pdf.save(filename);
+}
+
