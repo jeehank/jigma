@@ -14,6 +14,8 @@ export interface Project {
   type: ProjectType;
   data: any;
   thumbnail_url?: string;
+  is_password_protected?: boolean;
+  password?: string;
   created_at: string;
   updated_at: string;
 }
@@ -57,4 +59,14 @@ export interface PresenceUser {
   x: number;
   y: number;
   activeElementId?: string;
+  avatar_url?: string;
+  lastSeen?: number;
 }
+
+export interface CanvasSyncPayload {
+  senderId: string;
+  projectId: string;
+  data: any;
+  timestamp: number;
+}
+
