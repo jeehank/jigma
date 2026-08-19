@@ -125,7 +125,9 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     });
   }, [onSelectElement]);
 
-  const updateLayersList = useCallback(() => {
+  const isLoadingRef = useRef(true);
+
+  const updateLayersList = useCallback((skipSave: boolean = false) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
@@ -140,13 +142,17 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     }));
     onUpdateElementsList(layers);
 
+    // Never overwrite database while loading or when explicitly skipped
+    if (isLoadingRef.current || skipSave) return;
+
     let thumbUrl = '';
     try {
       thumbUrl = canvas.toDataURL({ format: 'png', multiplier: 0.25 });
     } catch (e) {}
 
     isSelfChangeRef.current = true;
-    onChangeData(canvas.toJSON(), thumbUrl);
+    const json = canvas.toJSON(['id', 'customName', 'isFrame', 'isMask', 'adjustments', 'locked', 'selectable']);
+    onChangeData(json, thumbUrl);
     setTimeout(() => {
       isSelfChangeRef.current = false;
     }, 100);
@@ -168,19 +174,44 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
     fabricCanvasRef.current = canvas;
 
-    if (initialData && Object.keys(initialData).length > 0 && initialData.objects && initialData.objects.length > 0) {
-      canvas.loadFromJSON(initialData, () => {
-        canvas.renderAll();
-        updateLayersList();
-      });
-    }
+    const initCanvasWithData = async () => {
+      isLoadingRef.current = true;
+      if (
+        initialData &&
+        typeof initialData === 'object' &&
+        Object.keys(initialData).length > 0 &&
+        initialData.objects &&
+        initialData.objects.length > 0
+      ) {
+        try {
+          await canvas.loadFromJSON(initialData);
+          canvas.getObjects().forEach((obj) => {
+            if ((obj as any).adjustments) {
+              applyFiltersToObject(obj, (obj as any).adjustments);
+            }
+          });
+          canvas.renderAll();
+          updateLayersList(true);
+        } catch (err) {
+          console.error('Error loading initial canvas JSON:', err);
+        }
+      } else {
+        updateLayersList(true);
+      }
+
+      setTimeout(() => {
+        isLoadingRef.current = false;
+      }, 250);
+    };
+
+    initCanvasWithData();
 
     canvas.on('selection:created', handleSelection);
     canvas.on('selection:updated', handleSelection);
     canvas.on('selection:cleared', handleSelection);
-    canvas.on('object:modified', updateLayersList);
-    canvas.on('object:added', updateLayersList);
-    canvas.on('object:removed', updateLayersList);
+    canvas.on('object:modified', () => updateLayersList(false));
+    canvas.on('object:added', () => updateLayersList(false));
+    canvas.on('object:removed', () => updateLayersList(false));
 
     const handleMouseMove = (opt: any) => {
       if (onCursorMove) {
@@ -238,10 +269,15 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
   // Handle remote canvas synchronization
   useEffect(() => {
-    if (initialData && !isSelfChangeRef.current && fabricCanvasRef.current) {
+    if (initialData && !isSelfChangeRef.current && !isLoadingRef.current && fabricCanvasRef.current) {
       const canvas = fabricCanvasRef.current;
-      if (initialData.objects) {
-        canvas.loadFromJSON(initialData, () => {
+      if (initialData.objects && initialData.objects.length > 0) {
+        canvas.loadFromJSON(initialData).then(() => {
+          canvas.getObjects().forEach((obj) => {
+            if ((obj as any).adjustments) {
+              applyFiltersToObject(obj, (obj as any).adjustments);
+            }
+          });
           canvas.renderAll();
           handleSelection();
         });
