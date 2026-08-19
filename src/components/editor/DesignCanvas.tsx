@@ -182,10 +182,12 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     canvas.on('object:added', updateLayersList);
     canvas.on('object:removed', updateLayersList);
 
-    const handleMouseMove = (opt: fabric.TEvent<MouseEvent>) => {
-      if (opt.e && onCursorMove) {
-        const pointer = canvas.getPointer(opt.e);
-        onCursorMove(pointer.x, pointer.y);
+    const handleMouseMove = (opt: any) => {
+      if (onCursorMove) {
+        const point = opt.scenePoint || opt.pointer || (opt.e ? { x: opt.e.offsetX, y: opt.e.offsetY } : null);
+        if (point) {
+          onCursorMove(point.x, point.y);
+        }
       }
     };
     canvas.on('mouse:move', handleMouseMove);

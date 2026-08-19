@@ -3,7 +3,6 @@ import type { Project, PresenceUser } from '../../types';
 import {
   ArrowLeft,
   Download,
-  CheckCircle2,
   Users,
   ZoomIn,
   ZoomOut,
