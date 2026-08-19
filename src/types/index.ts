@@ -16,6 +16,7 @@ export interface Project {
   thumbnail_url?: string;
   is_password_protected?: boolean;
   password?: string;
+  is_starred?: boolean;
   created_at: string;
   updated_at: string;
 }
