@@ -250,12 +250,21 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       )}
 
       {/* Typography Section for Text Elements */}
-      {selectedElement.type === 'text' && (
+      {(selectedElement.type === 'text' ||
+        selectedElement.type === 'i-text' ||
+        selectedElement.type === 'IText' ||
+        selectedElement.type === 'textbox' ||
+        selectedElement.text !== undefined) && (
         <div className="space-y-3 pt-3 border-t border-emerald-900/60">
-          <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center space-x-1.5">
-            <Type className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Typography</span>
-          </h4>
+          <div className="flex items-center justify-between">
+            <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center space-x-1.5">
+              <Type className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Typography</span>
+            </h4>
+            <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-300 font-mono">
+              {selectedElement.fontFamily || 'Inter'}
+            </span>
+          </div>
 
           {/* Text Content */}
           <div>
@@ -270,11 +279,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
           {/* Font Family Selector */}
           <div>
-            <label className="block text-[10px] text-gray-400 mb-1">Font Family</label>
+            <label className="block text-[10px] text-gray-400 mb-1 font-semibold">
+              Font Family (28 Fonts)
+            </label>
             <select
               value={selectedElement.fontFamily || 'Inter'}
               onChange={(e) => onUpdateElement({ fontFamily: e.target.value })}
-              className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-emerald-300 text-xs focus:outline-none focus:border-emerald-400 font-bold"
+              className="w-full px-3 py-2.5 bg-black border border-emerald-500/40 rounded-xl text-emerald-300 text-xs focus:outline-none focus:border-emerald-400 font-bold shadow-inner cursor-pointer"
               style={{ fontFamily: selectedElement.fontFamily || 'Inter' }}
             >
               {GOOGLE_FONTS.map((font) => (
@@ -282,7 +293,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   key={font.name}
                   value={font.name}
                   style={{ fontFamily: font.name }}
-                  className="bg-black text-white py-1"
+                  className="bg-[#0b120e] text-white py-1.5 text-xs"
                 >
                   {font.label}
                 </option>
@@ -297,9 +308,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               <input
                 type="number"
                 min="8"
-                max="240"
-                value={selectedElement.fontSize || 24}
-                onChange={(e) => onUpdateElement({ fontSize: parseInt(e.target.value) || 24 })}
+                max="300"
+                value={selectedElement.fontSize || 28}
+                onChange={(e) => onUpdateElement({ fontSize: parseInt(e.target.value) || 28 })}
                 className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-400 font-mono"
               />
             </div>
@@ -309,7 +320,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               <select
                 value={selectedElement.fontWeight || '400'}
                 onChange={(e) => onUpdateElement({ fontWeight: e.target.value })}
-                className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-emerald-300 text-xs focus:outline-none focus:border-emerald-400 font-mono"
+                className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-emerald-300 text-xs focus:outline-none focus:border-emerald-400 font-mono cursor-pointer"
               >
                 <option value="300">Light (300)</option>
                 <option value="400">Regular (400)</option>
@@ -318,6 +329,24 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 <option value="900">Black (900)</option>
               </select>
             </div>
+          </div>
+
+          {/* Quick Size Presets */}
+          <div className="flex items-center space-x-1 pt-0.5">
+            {[16, 24, 32, 48, 64, 96].map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => onUpdateElement({ fontSize: size })}
+                className={`flex-1 py-1 rounded text-[10px] font-mono transition-colors border ${
+                  selectedElement.fontSize === size
+                    ? 'bg-emerald-500 text-black border-emerald-400 font-bold'
+                    : 'bg-black/60 text-gray-400 border-white/[0.06] hover:text-white hover:border-emerald-500/30'
+                }`}
+              >
+                {size}
+              </button>
+            ))}
           </div>
 
           {/* Text Alignment & Styles */}

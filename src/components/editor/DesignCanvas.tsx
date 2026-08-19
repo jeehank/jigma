@@ -34,47 +34,87 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
   const applyFiltersToObject = useCallback((obj: fabric.Object, adj: ColorAdjustments) => {
     (obj as any).adjustments = adj;
 
-    if (obj.type === 'image' || (obj as any).isType?.('FabricImage') || (obj as any)._element) {
+    const isImg =
+      obj instanceof fabric.FabricImage ||
+      obj.type === 'Image' ||
+      obj.type === 'image' ||
+      (obj as any)._element ||
+      (obj as any).src !== undefined;
+
+    if (isImg) {
       const img = obj as fabric.FabricImage;
       const filters: any[] = [];
 
-      // Combine Exposure and Brightness
-      const expScale = Math.pow(2, (adj.exposure || 0) / 50);
-      const combinedBrightness = ((adj.brightness || 0) / 100) + (expScale - 1);
-      if (Math.abs(combinedBrightness) > 0.01) {
-        filters.push(new fabric.filters.Brightness({ brightness: combinedBrightness }));
+      // 1. Exposure and Brightness
+      const expBrightness = (adj.exposure || 0) / 100;
+      const baseBrightness = (adj.brightness || 0) / 100;
+      const totalBrightness = Math.max(-1, Math.min(1, expBrightness + baseBrightness));
+      if (Math.abs(totalBrightness) > 0.001) {
+        filters.push(new fabric.filters.Brightness({ brightness: totalBrightness }));
       }
 
-      if (adj.contrast !== 0) {
+      // 2. Contrast (-100 to 100 -> -1 to 1)
+      if ((adj.contrast || 0) !== 0) {
         filters.push(new fabric.filters.Contrast({ contrast: (adj.contrast || 0) / 100 }));
       }
 
-      if (adj.saturation !== 0) {
+      // 3. Saturation (-100 to 100 -> -1 to 1)
+      if ((adj.saturation || 0) !== 0) {
         filters.push(new fabric.filters.Saturation({ saturation: (adj.saturation || 0) / 100 }));
       }
 
-      if (adj.hueShift !== 0) {
-        filters.push(new fabric.filters.HueRotation({ rotation: (adj.hueShift || 0) * (Math.PI / 180) }));
+      // 4. Hue Shift (-180 to 180 -> -1 to 1)
+      if ((adj.hueShift || 0) !== 0) {
+        filters.push(new fabric.filters.HueRotation({ rotation: (adj.hueShift || 0) / 180 }));
       }
 
-      if (adj.blur > 0) {
+      // 5. Blur (0 to 100 -> 0 to 1)
+      if ((adj.blur || 0) > 0) {
         filters.push(new fabric.filters.Blur({ blur: (adj.blur || 0) / 100 }));
       }
 
-      if (adj.grayscale > 0) {
+      // 6. Temperature (Cool / Warm) via BlendColor
+      if ((adj.temperature || 0) !== 0) {
+        const isWarm = adj.temperature > 0;
+        filters.push(
+          new fabric.filters.BlendColor({
+            color: isWarm ? '#ff8c00' : '#00bfff',
+            mode: 'tint',
+            alpha: Math.min(0.85, Math.abs(adj.temperature) / 100),
+          })
+        );
+      }
+
+      // 7. Tint (Green / Magenta) via BlendColor
+      if ((adj.tint || 0) !== 0) {
+        const isMagenta = adj.tint > 0;
+        filters.push(
+          new fabric.filters.BlendColor({
+            color: isMagenta ? '#ff007f' : '#00ff66',
+            mode: 'tint',
+            alpha: Math.min(0.85, Math.abs(adj.tint) / 100),
+          })
+        );
+      }
+
+      // 8. Grayscale (0 to 100)
+      if ((adj.grayscale || 0) > 0) {
         filters.push(new fabric.filters.Grayscale({ mode: 'average' }));
       }
 
-      if (adj.sepia > 0) {
+      // 9. Sepia (0 to 100)
+      if ((adj.sepia || 0) > 0) {
         filters.push(new fabric.filters.Sepia());
       }
 
-      if (adj.invert > 0) {
+      // 10. Invert (0 to 100)
+      if ((adj.invert || 0) > 0) {
         filters.push(new fabric.filters.Invert());
       }
 
       img.filters = filters;
       img.applyFilters();
+      fabricCanvasRef.current?.renderAll();
     }
   }, []);
 
@@ -102,19 +142,26 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       invert: 0,
     };
 
+    const isTextType =
+      activeObj.type === 'i-text' ||
+      activeObj.type === 'IText' ||
+      activeObj.type === 'text' ||
+      activeObj.type === 'textbox' ||
+      (activeObj as any).text !== undefined;
+
     onSelectElement({
       id: (activeObj as any).id || 'obj_' + Math.random().toString(36).slice(2, 6),
-      name: (activeObj as any).customName || `${activeObj.type}`,
-      type: activeObj.type,
+      name: (activeObj as any).customName || (isTextType ? 'Text Layer' : `${activeObj.type}`),
+      type: isTextType ? 'text' : activeObj.type,
       fill: activeObj.fill as string,
       stroke: activeObj.stroke as string,
       opacity: activeObj.opacity ?? 1,
       blendMode: (activeObj.globalCompositeOperation || 'normal') as BlendMode,
       adjustments: adj,
-      text: (activeObj as any).text,
+      text: (activeObj as any).text || '',
       fontFamily: (activeObj as any).fontFamily || 'Inter',
-      fontSize: (activeObj as any).fontSize || 24,
-      fontWeight: (activeObj as any).fontWeight || '400',
+      fontSize: (activeObj as any).fontSize || 28,
+      fontWeight: String((activeObj as any).fontWeight || '400'),
       fontStyle: (activeObj as any).fontStyle || 'normal',
       textAlign: (activeObj as any).textAlign || 'left',
       underline: (activeObj as any).underline || false,
