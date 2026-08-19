@@ -97,6 +97,8 @@ export function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const isValidUUID = (id?: string) => !!id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
   // Fetch projects list for current user
   useEffect(() => {
     if (user) {
@@ -112,7 +114,7 @@ export function App() {
         .select('*')
         .order('updated_at', { ascending: false });
 
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         setProjects(data as Project[]);
         localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(data));
         return;
@@ -269,28 +271,37 @@ export function App() {
     realtimeRef.current?.broadcastCursor(x, y);
   }, []);
 
+  const [createModalDefaultType, setCreateModalDefaultType] = useState<ProjectType>('design');
+
   const handleCreateProject = async (title: string, type: ProjectType) => {
-    const currentUserId = user?.id || 'anon_user';
+    const dbUserId = isValidUUID(user?.id) ? user!.id : null;
     const newProj: Project = {
       id: crypto.randomUUID(),
-      user_id: currentUserId,
+      user_id: user?.id,
       title,
       type,
       data: {},
       is_password_protected: false,
+      is_starred: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
     try {
-      await supabase.from('projects').insert({
+      const { error } = await supabase.from('projects').insert({
         id: newProj.id,
-        user_id: currentUserId,
+        user_id: dbUserId,
         title: newProj.title,
         type: newProj.type,
         data: newProj.data,
         is_password_protected: false,
+        is_starred: false,
+        created_at: newProj.created_at,
+        updated_at: newProj.updated_at,
       });
+      if (error) {
+        console.error('Supabase project insert error:', error);
+      }
     } catch (e) {
       console.error('Failed to insert project into Supabase:', e);
     }
@@ -305,7 +316,6 @@ export function App() {
   };
 
   const handleDeleteProject = async (id: string) => {
-    if (!user) return;
     try {
       await supabase.from('projects').delete().eq('id', id);
     } catch (e) {
@@ -314,15 +324,17 @@ export function App() {
 
     const updated = projects.filter((p) => p.id !== id);
     setProjects(updated);
-    localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    if (user) {
+      localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    }
   };
 
   const handleDuplicateProject = async (project: Project) => {
-    const currentUserId = user?.id || 'anon_user';
+    const dbUserId = isValidUUID(user?.id) ? user!.id : null;
     const duplicated: Project = {
       ...project,
       id: crypto.randomUUID(),
-      user_id: currentUserId,
+      user_id: user?.id,
       title: `${project.title} (Copy)`,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -331,12 +343,15 @@ export function App() {
     try {
       await supabase.from('projects').insert({
         id: duplicated.id,
-        user_id: currentUserId,
+        user_id: dbUserId,
         title: duplicated.title,
         type: duplicated.type,
         data: duplicated.data,
         is_password_protected: duplicated.is_password_protected,
         password: duplicated.password,
+        is_starred: duplicated.is_starred,
+        created_at: duplicated.created_at,
+        updated_at: duplicated.updated_at,
       });
     } catch (e) {
       console.error('Failed to duplicate project in Supabase:', e);
@@ -346,6 +361,28 @@ export function App() {
     setProjects(updated);
     if (user) {
       localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    }
+  };
+
+  const handleToggleStarProject = async (projectId: string) => {
+    const target = projects.find((p) => p.id === projectId);
+    if (!target) return;
+    const newStarred = !target.is_starred;
+    const updated = projects.map((p) =>
+      p.id === projectId ? { ...p, is_starred: newStarred } : p
+    );
+    setProjects(updated);
+    if (user) {
+      localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    }
+
+    try {
+      await supabase
+        .from('projects')
+        .update({ is_starred: newStarred, updated_at: new Date().toISOString() })
+        .eq('id', projectId);
+    } catch (e) {
+      console.error('Failed to toggle star in Supabase:', e);
     }
   };
 
@@ -456,9 +493,13 @@ export function App() {
               const target = projects.find((p) => p.id === id);
               if (target) openProjectWithProtectionCheck(target);
             }}
-            onCreateProjectClick={() => setIsCreateModalOpen(true)}
+            onCreateProjectClick={(type) => {
+              setCreateModalDefaultType(type || 'design');
+              setIsCreateModalOpen(true);
+            }}
             onDeleteProject={handleDeleteProject}
             onDuplicateProject={handleDuplicateProject}
+            onToggleStar={handleToggleStarProject}
             onSignOut={() => {
               supabase.auth.signOut();
               localStorage.removeItem('jigma_user_session');
@@ -472,6 +513,7 @@ export function App() {
 
         <CreateProjectModal
           isOpen={isCreateModalOpen}
+          defaultType={createModalDefaultType}
           onClose={() => setIsCreateModalOpen(false)}
           onCreate={handleCreateProject}
         />
