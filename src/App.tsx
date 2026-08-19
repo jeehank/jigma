@@ -18,7 +18,17 @@ import { subscribeToProjectRoom } from './lib/realtime';
 export function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>(() => {
+    try {
+      const savedUser = localStorage.getItem('jigma_user_session');
+      if (savedUser) {
+        const u = JSON.parse(savedUser);
+        const local = localStorage.getItem(`figmaclone_projects_${u.id}`);
+        if (local) return JSON.parse(local);
+      }
+    } catch (e) {}
+    return [];
+  });
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 

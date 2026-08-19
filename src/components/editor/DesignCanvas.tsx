@@ -457,10 +457,11 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       });
       (img as any).customName = 'Uploaded Image';
       (img as any).id = 'obj_' + Math.random().toString(36).slice(2, 7);
+      (img as any).src = url;
       canvas.add(img);
       canvas.setActiveObject(img);
       canvas.renderAll();
-      updateLayersList();
+      updateLayersList(false);
     });
   };
 
