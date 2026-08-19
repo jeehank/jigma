@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as fabric from 'fabric';
-import type { BlendMode } from '../../types';
-import { exportElementAsPng, exportAsSvg, exportElementAsPdf } from '../../lib/exportUtils';
+import type { BlendMode, ColorAdjustments, PresenceUser } from '../../types';
+import { exportElementAsPng, exportAsSvg, exportElementAsPdf, exportDataUrlAsPdf, downloadFile } from '../../lib/exportUtils';
+import { CollaboratorCursors } from './CollaboratorCursors';
 
 interface DesignCanvasProps {
   initialData?: any;
@@ -10,6 +11,8 @@ interface DesignCanvasProps {
   onSelectElement: (element: any | null) => void;
   onUpdateElementsList: (elements: any[]) => void;
   zoomLevel: number;
+  collaborators?: PresenceUser[];
+  onCursorMove?: (x: number, y: number) => void;
 }
 
 export const DesignCanvas: React.FC<DesignCanvasProps> = ({
@@ -18,11 +21,136 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
   onSelectElement,
   onUpdateElementsList,
   zoomLevel,
+  collaborators = [],
+  onCursorMove,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const isSelfChangeRef = useRef(false);
+
+  // Apply visual color grading filters to an object (especially images)
+  const applyFiltersToObject = useCallback((obj: fabric.Object, adj: ColorAdjustments) => {
+    (obj as any).adjustments = adj;
+
+    if (obj.type === 'image' || (obj as any).isType?.('FabricImage') || (obj as any)._element) {
+      const img = obj as fabric.FabricImage;
+      const filters: any[] = [];
+
+      // Combine Exposure and Brightness
+      const expScale = Math.pow(2, (adj.exposure || 0) / 50);
+      const combinedBrightness = ((adj.brightness || 0) / 100) + (expScale - 1);
+      if (Math.abs(combinedBrightness) > 0.01) {
+        filters.push(new fabric.filters.Brightness({ brightness: combinedBrightness }));
+      }
+
+      if (adj.contrast !== 0) {
+        filters.push(new fabric.filters.Contrast({ contrast: (adj.contrast || 0) / 100 }));
+      }
+
+      if (adj.saturation !== 0) {
+        filters.push(new fabric.filters.Saturation({ saturation: (adj.saturation || 0) / 100 }));
+      }
+
+      if (adj.hueShift !== 0) {
+        filters.push(new fabric.filters.HueRotation({ rotation: (adj.hueShift || 0) * (Math.PI / 180) }));
+      }
+
+      if (adj.blur > 0) {
+        filters.push(new fabric.filters.Blur({ blur: (adj.blur || 0) / 100 }));
+      }
+
+      if (adj.grayscale > 0) {
+        filters.push(new fabric.filters.Grayscale({ mode: 'average' }));
+      }
+
+      if (adj.sepia > 0) {
+        filters.push(new fabric.filters.Sepia());
+      }
+
+      if (adj.invert > 0) {
+        filters.push(new fabric.filters.Invert());
+      }
+
+      img.filters = filters;
+      img.applyFilters();
+    }
+  }, []);
+
+  const handleSelection = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const activeObj = canvas.getActiveObject();
+    if (!activeObj) {
+      onSelectElement(null);
+      return;
+    }
+
+    const adj = (activeObj as any).adjustments || {
+      exposure: 0,
+      tint: 0,
+      temperature: 0,
+      brightness: 0,
+      contrast: 0,
+      saturation: 0,
+      hueShift: 0,
+      blur: 0,
+      sepia: 0,
+      grayscale: 0,
+      invert: 0,
+    };
+
+    onSelectElement({
+      id: (activeObj as any).id || 'obj_' + Math.random().toString(36).slice(2, 6),
+      name: (activeObj as any).customName || `${activeObj.type}`,
+      type: activeObj.type,
+      fill: activeObj.fill as string,
+      stroke: activeObj.stroke as string,
+      opacity: activeObj.opacity ?? 1,
+      blendMode: (activeObj.globalCompositeOperation || 'normal') as BlendMode,
+      adjustments: adj,
+      text: (activeObj as any).text,
+      fontFamily: (activeObj as any).fontFamily || 'Inter',
+      fontSize: (activeObj as any).fontSize || 24,
+      fontWeight: (activeObj as any).fontWeight || '400',
+      fontStyle: (activeObj as any).fontStyle || 'normal',
+      textAlign: (activeObj as any).textAlign || 'left',
+      underline: (activeObj as any).underline || false,
+      linethrough: (activeObj as any).linethrough || false,
+      charSpacing: (activeObj as any).charSpacing || 0,
+      isMask: (activeObj as any).isMask || false,
+      isFrame: (activeObj as any).isFrame || (activeObj as any).customName?.includes('Frame') || false,
+    });
+  }, [onSelectElement]);
+
+  const updateLayersList = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const objects = canvas.getObjects();
+    const layers = objects.map((obj: any, idx: number) => ({
+      id: obj.id || `obj_${idx}_${obj.type}`,
+      name: obj.customName || `${obj.type} ${idx + 1}`,
+      type: obj.type,
+      hidden: !obj.visible,
+      locked: !obj.selectable,
+      isFrame: obj.isFrame || obj.customName?.includes('Frame') || false,
+    }));
+    onUpdateElementsList(layers);
+
+    let thumbUrl = '';
+    try {
+      thumbUrl = canvas.toDataURL({ format: 'png', multiplier: 0.25 });
+    } catch (e) {}
+
+    isSelfChangeRef.current = true;
+    onChangeData(canvas.toJSON(), thumbUrl);
+    setTimeout(() => {
+      isSelfChangeRef.current = false;
+    }, 100);
+  }, [onChangeData, onUpdateElementsList]);
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
@@ -40,59 +168,6 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
     fabricCanvasRef.current = canvas;
 
-    const updateLayersList = () => {
-      const objects = canvas.getObjects();
-      const layers = objects.map((obj: any, idx: number) => ({
-        id: obj.id || `obj_${idx}_${obj.type}`,
-        name: obj.customName || `${obj.type} ${idx + 1}`,
-        type: obj.type,
-        hidden: !obj.visible,
-        locked: !obj.selectable,
-      }));
-      onUpdateElementsList(layers);
-
-      let thumbUrl = '';
-      try {
-        thumbUrl = canvas.toDataURL({ format: 'png', multiplier: 0.3 });
-      } catch (e) {}
-
-      onChangeData(canvas.toJSON(), thumbUrl);
-    };
-
-    const handleSelection = () => {
-      const activeObj = canvas.getActiveObject();
-      if (!activeObj) {
-        onSelectElement(null);
-        return;
-      }
-
-      onSelectElement({
-        id: (activeObj as any).id || 'obj_' + Math.random().toString(36).slice(2, 6),
-        type: activeObj.type,
-        fill: activeObj.fill as string,
-        stroke: activeObj.stroke as string,
-        opacity: activeObj.opacity,
-        blendMode: (activeObj.globalCompositeOperation || 'normal') as BlendMode,
-        adjustments: (activeObj as any).adjustments || {
-          exposure: 0,
-          tint: 0,
-          temperature: 0,
-          brightness: 0,
-          contrast: 0,
-          saturation: 0,
-          hueShift: 0,
-          blur: 0,
-          sepia: 0,
-          grayscale: 0,
-          invert: 0,
-        },
-        text: (activeObj as any).text,
-        fontSize: (activeObj as any).fontSize,
-        fontWeight: (activeObj as any).fontWeight,
-        isMask: (activeObj as any).isMask || false,
-      });
-    };
-
     if (initialData && Object.keys(initialData).length > 0 && initialData.objects && initialData.objects.length > 0) {
       canvas.loadFromJSON(initialData, () => {
         canvas.renderAll();
@@ -106,6 +181,14 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     canvas.on('object:modified', updateLayersList);
     canvas.on('object:added', updateLayersList);
     canvas.on('object:removed', updateLayersList);
+
+    const handleMouseMove = (opt: fabric.TEvent<MouseEvent>) => {
+      if (opt.e && onCursorMove) {
+        const pointer = canvas.getPointer(opt.e);
+        onCursorMove(pointer.x, pointer.y);
+      }
+    };
+    canvas.on('mouse:move', handleMouseMove);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && !isEditingText(canvas)) {
@@ -130,6 +213,19 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       canvas.dispose();
     };
   }, []);
+
+  // Handle remote canvas synchronization
+  useEffect(() => {
+    if (initialData && !isSelfChangeRef.current && fabricCanvasRef.current) {
+      const canvas = fabricCanvasRef.current;
+      if (initialData.objects) {
+        canvas.loadFromJSON(initialData, () => {
+          canvas.renderAll();
+          handleSelection();
+        });
+      }
+    }
+  }, [initialData, handleSelection]);
 
   const isEditingText = (canvas: fabric.Canvas) => {
     const activeObj = canvas.getActiveObject();
@@ -182,6 +278,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       canvas.discardActiveObject();
       canvas.renderAll();
       onSelectElement(null);
+      updateLayersList();
     }
   };
 
@@ -195,6 +292,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       canvas.remove(target);
       canvas.renderAll();
       onSelectElement(null);
+      updateLayersList();
     }
   };
 
@@ -207,20 +305,20 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
     if (type === 'rect') {
       shape = new fabric.Rect({
-        left: center.x - 60,
-        top: center.y - 60,
-        width: 120,
-        height: 120,
+        left: center.x - 70,
+        top: center.y - 70,
+        width: 140,
+        height: 140,
         fill: '#00ff66',
-        rx: 8,
-        ry: 8,
+        rx: 12,
+        ry: 12,
       });
       (shape as any).customName = 'Rectangle';
     } else if (type === 'circle') {
       shape = new fabric.Circle({
-        left: center.x - 60,
-        top: center.y - 60,
-        radius: 60,
+        left: center.x - 70,
+        top: center.y - 70,
+        radius: 70,
         fill: '#10b981',
       });
       (shape as any).customName = 'Circle';
@@ -246,7 +344,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       );
       (shape as any).customName = 'Star';
     } else {
-      shape = new fabric.Line([center.x - 50, center.y, center.x + 50, center.y], {
+      shape = new fabric.Line([center.x - 60, center.y, center.x + 60, center.y], {
         stroke: '#00ff66',
         strokeWidth: 4,
       });
@@ -257,6 +355,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     canvas.add(shape);
     canvas.setActiveObject(shape);
     canvas.renderAll();
+    updateLayersList();
   };
 
   const addText = () => {
@@ -265,17 +364,19 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
     const center = canvas.getVpCenter();
     const text = new fabric.IText('Edit this text...', {
-      left: center.x - 80,
+      left: center.x - 100,
       top: center.y - 20,
-      fontSize: 24,
+      fontSize: 28,
       fill: '#ffffff',
-      fontFamily: 'Inter, sans-serif',
+      fontFamily: 'Inter',
+      fontWeight: '600',
     });
     (text as any).customName = 'Text Layer';
     (text as any).id = 'obj_' + Math.random().toString(36).slice(2, 7);
     canvas.add(text);
     canvas.setActiveObject(text);
     canvas.renderAll();
+    updateLayersList();
   };
 
   const addImage = (url: string) => {
@@ -284,16 +385,17 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
     fabric.FabricImage.fromURL(url).then((img) => {
       const center = canvas.getVpCenter();
-      img.scaleToWidth(300);
+      img.scaleToWidth(320);
       img.set({
-        left: center.x - 150,
-        top: center.y - 100,
+        left: center.x - 160,
+        top: center.y - 120,
       });
       (img as any).customName = 'Uploaded Image';
       (img as any).id = 'obj_' + Math.random().toString(36).slice(2, 7);
       canvas.add(img);
       canvas.setActiveObject(img);
       canvas.renderAll();
+      updateLayersList();
     });
   };
 
@@ -306,31 +408,35 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
     const bounds = activeObj.getBoundingRect();
     const frame = new fabric.Rect({
-      left: bounds.left - 20,
-      top: bounds.top - 40,
-      width: bounds.width + 40,
-      height: bounds.height + 60,
+      left: bounds.left - 24,
+      top: bounds.top - 44,
+      width: bounds.width + 48,
+      height: bounds.height + 68,
       fill: '#05140b',
       stroke: '#00ff66',
       strokeWidth: 2,
       rx: 16,
       ry: 16,
     });
-    (frame as any).customName = 'New Frame (Artboard)';
+    (frame as any).customName = 'Frame Artboard';
+    (frame as any).isFrame = true;
+    (frame as any).id = 'frame_' + Math.random().toString(36).slice(2, 7);
 
     const frameLabel = new fabric.IText('Frame Artboard', {
-      left: bounds.left - 10,
-      top: bounds.top - 32,
+      left: bounds.left - 14,
+      top: bounds.top - 36,
       fontSize: 12,
       fontWeight: 'bold',
       fill: '#00ff66',
-      fontFamily: 'Inter, sans-serif',
+      fontFamily: 'Inter',
     });
-    (frameLabel as any).customName = 'Frame Header';
+    (frameLabel as any).customName = 'Frame Label';
 
     canvas.add(frame, frameLabel);
     canvas.sendObjectToBack(frame);
+    canvas.setActiveObject(frame);
     canvas.renderAll();
+    updateLayersList();
   };
 
   const toggleMask = () => {
@@ -347,6 +453,8 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       activeObj.set({ opacity: 1, strokeWidth: 0 });
     }
     canvas.renderAll();
+    handleSelection();
+    updateLayersList();
   };
 
   const updateActiveElement = (updates: any) => {
@@ -361,26 +469,28 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     if (updates.opacity !== undefined) activeObj.set('opacity', updates.opacity);
     if (updates.blendMode !== undefined) activeObj.set('globalCompositeOperation', updates.blendMode);
 
-    if (updates.text !== undefined && activeObj.type === 'text') (activeObj as any).set('text', updates.text);
-    if (updates.fontSize !== undefined && activeObj.type === 'text') (activeObj as any).set('fontSize', updates.fontSize);
-    if (updates.fontWeight !== undefined && activeObj.type === 'text') (activeObj as any).set('fontWeight', updates.fontWeight);
+    // Typography updates
+    if (updates.text !== undefined && (activeObj as any).set) (activeObj as any).set('text', updates.text);
+    if (updates.fontFamily !== undefined && (activeObj as any).set) (activeObj as any).set('fontFamily', updates.fontFamily);
+    if (updates.fontSize !== undefined && (activeObj as any).set) (activeObj as any).set('fontSize', updates.fontSize);
+    if (updates.fontWeight !== undefined && (activeObj as any).set) (activeObj as any).set('fontWeight', updates.fontWeight);
+    if (updates.fontStyle !== undefined && (activeObj as any).set) (activeObj as any).set('fontStyle', updates.fontStyle);
+    if (updates.textAlign !== undefined && (activeObj as any).set) (activeObj as any).set('textAlign', updates.textAlign);
+    if (updates.underline !== undefined && (activeObj as any).set) (activeObj as any).set('underline', updates.underline);
+    if (updates.linethrough !== undefined && (activeObj as any).set) (activeObj as any).set('linethrough', updates.linethrough);
+    if (updates.charSpacing !== undefined && (activeObj as any).set) (activeObj as any).set('charSpacing', updates.charSpacing);
 
+    // Visual Filter & Adjustment updates
     if (updates.adjustments !== undefined) {
-      (activeObj as any).adjustments = updates.adjustments;
+      applyFiltersToObject(activeObj, updates.adjustments);
     }
 
     canvas.renderAll();
-    onSelectElement({
-      ...activeObj.toJSON(),
-      id: (activeObj as any).id || 'obj_active',
-      type: activeObj.type,
-      fill: activeObj.fill as string,
-      opacity: activeObj.opacity,
-      blendMode: activeObj.globalCompositeOperation as BlendMode,
-      adjustments: (activeObj as any).adjustments,
-    });
+    handleSelection();
+    updateLayersList();
   };
 
+  // Export full design board
   const exportPng = () => {
     if (canvasRef.current) {
       exportElementAsPng(canvasRef.current, { filename: 'design-board.png', scale: 2 });
@@ -400,6 +510,63 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     }
   };
 
+  // Export ONLY the parts inside the Frame Artboard
+  const exportFrame = (format: 'png' | 'svg' | 'pdf' = 'png', targetFrame?: fabric.Object) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    let frame = targetFrame || canvas.getActiveObject();
+    if (!frame || !(frame as any).isFrame) {
+      // Find the first frame object if active object is not a frame
+      const objects = canvas.getObjects();
+      frame = objects.find((o: any) => o.isFrame || o.customName?.includes('Frame')) || null;
+    }
+
+    if (!frame) {
+      // If no frame found, fallback to standard export
+      if (format === 'png') exportPng();
+      else if (format === 'svg') exportSvg();
+      else exportPdf();
+      return;
+    }
+
+    const bound = frame.getBoundingRect();
+    const frameName = (frame as any).customName?.replace(/[^a-zA-Z0-9_-]/g, '_') || 'frame-export';
+
+    if (format === 'png') {
+      const dataUrl = canvas.toDataURL({
+        left: bound.left,
+        top: bound.top,
+        width: bound.width,
+        height: bound.height,
+        format: 'png',
+        multiplier: 2,
+      });
+      downloadFile(dataUrl, `${frameName}.png`);
+    } else if (format === 'svg') {
+      // Export SVG cropped to frame bounding box
+      const svg = canvas.toSVG({
+        viewBox: {
+          x: bound.left,
+          y: bound.top,
+          width: bound.width,
+          height: bound.height,
+        },
+      });
+      exportAsSvg(svg, `${frameName}.svg`);
+    } else if (format === 'pdf') {
+      const dataUrl = canvas.toDataURL({
+        left: bound.left,
+        top: bound.top,
+        width: bound.width,
+        height: bound.height,
+        format: 'png',
+        multiplier: 2,
+      });
+      exportDataUrlAsPdf(dataUrl, bound.width, bound.height, `${frameName}.pdf`);
+    }
+  };
+
   (window as any).__designCanvasActions = {
     addShape,
     addText,
@@ -412,14 +579,22 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     exportPng,
     exportSvg,
     exportPdf,
+    exportFrame,
   };
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full relative overflow-hidden bg-grid-pattern bg-[#030704] flex items-center justify-center"
+      className="w-full h-full relative overflow-hidden bg-grid-pattern bg-[#030704] flex items-center justify-center select-none"
     >
       <canvas ref={canvasRef} />
+
+      {/* Live Multiplayer Cursors in Design Canvas */}
+      <CollaboratorCursors
+        collaborators={collaborators}
+        zoomLevel={zoomLevel}
+        panOffset={{ x: 0, y: 0 }}
+      />
     </div>
   );
 };
