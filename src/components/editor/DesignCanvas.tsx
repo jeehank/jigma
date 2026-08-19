@@ -193,8 +193,28 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     canvas.on('mouse:move', handleMouseMove);
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && !isEditingText(canvas)) {
+      if (isEditingText(canvas)) return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
         deleteActiveElement();
+      }
+
+      // Layer depth shortcuts
+      if (e.key === '[') {
+        const activeObj = canvas.getActiveObject();
+        if (activeObj) {
+          canvas.sendObjectToBack(activeObj);
+          canvas.renderAll();
+          updateLayersList();
+        }
+      }
+      if (e.key === ']') {
+        const activeObj = canvas.getActiveObject();
+        if (activeObj) {
+          canvas.bringObjectToFront(activeObj);
+          canvas.renderAll();
+          updateLayersList();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -448,15 +468,140 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     const activeObj = canvas.getActiveObject();
     if (!activeObj) return;
 
-    (activeObj as any).isMask = !(activeObj as any).isMask;
-    if ((activeObj as any).isMask) {
-      activeObj.set({ opacity: 0.5, stroke: '#00ff66', strokeWidth: 2 });
-    } else {
-      activeObj.set({ opacity: 1, strokeWidth: 0 });
+    // If the object already has a clipPath, unmask it
+    if ((activeObj as any).clipPath) {
+      const restoredShape = (activeObj as any)._maskBackup;
+      (activeObj as any).clipPath = undefined;
+      (activeObj as any).isMask = false;
+      delete (activeObj as any)._maskBackup;
+      if (restoredShape) {
+        canvas.add(restoredShape);
+      }
+      canvas.renderAll();
+      handleSelection();
+      updateLayersList();
+      return;
     }
-    canvas.renderAll();
-    handleSelection();
-    updateLayersList();
+
+    // Find mask shape and target image: look for shape below the active object (image)
+    const objects = canvas.getObjects();
+    const activeIdx = objects.indexOf(activeObj);
+
+    // Strategy: If active is an image, find the shape directly below it to use as clip
+    // If active is a shape, find the image directly above it to clip
+    let targetObj: fabric.Object | null = null;
+    let maskShape: fabric.Object | null = null;
+
+    const isImage = (o: any) => o.type === 'image' || o._element || o.isType?.('FabricImage');
+    const isShape = (o: any) => ['rect', 'circle', 'polygon', 'ellipse', 'path', 'triangle'].includes(o.type || '');
+
+    if (isImage(activeObj)) {
+      // Active is image, look for a shape below it
+      for (let i = activeIdx - 1; i >= 0; i--) {
+        if (isShape(objects[i]) && !(objects[i] as any).isFrame) {
+          maskShape = objects[i];
+          targetObj = activeObj;
+          break;
+        }
+      }
+    } else if (isShape(activeObj) && !(activeObj as any).isFrame) {
+      // Active is a shape, look for an image above it
+      for (let i = activeIdx + 1; i < objects.length; i++) {
+        if (isImage(objects[i])) {
+          targetObj = objects[i];
+          maskShape = activeObj;
+          break;
+        }
+      }
+    }
+
+    if (!targetObj || !maskShape) {
+      // Fallback: just toggle the visual mask indicator
+      (activeObj as any).isMask = !(activeObj as any).isMask;
+      if ((activeObj as any).isMask) {
+        activeObj.set({ opacity: 0.5, stroke: '#00ff66', strokeWidth: 2 });
+      } else {
+        activeObj.set({ opacity: 1, strokeWidth: 0 });
+      }
+      canvas.renderAll();
+      handleSelection();
+      updateLayersList();
+      return;
+    }
+
+    // Clone the mask shape and apply as clipPath
+    maskShape.clone().then((clonedMask: fabric.Object) => {
+      clonedMask.set({
+        absolutePositioned: true,
+      });
+      (targetObj as any).clipPath = clonedMask;
+      (targetObj as any).isMask = true;
+      (targetObj as any)._maskBackup = maskShape;
+      canvas.remove(maskShape!);
+      canvas.setActiveObject(targetObj!);
+      canvas.renderAll();
+      handleSelection();
+      updateLayersList();
+    });
+  };
+
+  const reorderLayer = (fromIndex: number, toIndex: number) => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+
+    const objects = canvas.getObjects();
+    if (fromIndex < 0 || fromIndex >= objects.length || toIndex < 0 || toIndex >= objects.length) return;
+
+    const target = objects[fromIndex];
+    if (target) {
+      canvas.moveObjectTo(target, toIndex);
+      canvas.renderAll();
+      updateLayersList();
+    }
+  };
+
+  const sendActiveToBack = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const activeObj = canvas.getActiveObject();
+    if (activeObj) {
+      canvas.sendObjectToBack(activeObj);
+      canvas.renderAll();
+      updateLayersList();
+    }
+  };
+
+  const bringActiveToFront = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const activeObj = canvas.getActiveObject();
+    if (activeObj) {
+      canvas.bringObjectToFront(activeObj);
+      canvas.renderAll();
+      updateLayersList();
+    }
+  };
+
+  const sendActiveBackwards = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const activeObj = canvas.getActiveObject();
+    if (activeObj) {
+      canvas.sendObjectBackwards(activeObj);
+      canvas.renderAll();
+      updateLayersList();
+    }
+  };
+
+  const bringActiveForward = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const activeObj = canvas.getActiveObject();
+    if (activeObj) {
+      canvas.bringObjectForward(activeObj);
+      canvas.renderAll();
+      updateLayersList();
+    }
   };
 
   const updateActiveElement = (updates: any) => {
@@ -582,6 +727,11 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     exportSvg,
     exportPdf,
     exportFrame,
+    reorderLayer,
+    sendActiveToBack,
+    bringActiveToFront,
+    sendActiveBackwards,
+    bringActiveForward,
   };
 
   return (
