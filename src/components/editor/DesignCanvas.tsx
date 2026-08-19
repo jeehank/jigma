@@ -126,6 +126,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
   }, [onSelectElement]);
 
   const isLoadingRef = useRef(true);
+  const isDisposingRef = useRef(false);
 
   const updateLayersList = useCallback((skipSave: boolean = false) => {
     const canvas = fabricCanvasRef.current;
@@ -142,8 +143,8 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     }));
     onUpdateElementsList(layers);
 
-    // Never overwrite database while loading or when explicitly skipped
-    if (isLoadingRef.current || skipSave) return;
+    // Never overwrite database while loading, disposing, or when explicitly skipped
+    if (isLoadingRef.current || isDisposingRef.current || skipSave) return;
 
     let thumbUrl = '';
     try {
@@ -151,7 +152,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     } catch (e) {}
 
     isSelfChangeRef.current = true;
-    const json = (canvas as any).toObject(['id', 'customName', 'isFrame', 'isMask', 'adjustments', 'locked', 'selectable']);
+    const json = (canvas as any).toObject(['id', 'customName', 'isFrame', 'isMask', 'adjustments', 'locked', 'selectable', 'src']);
     onChangeData(json, thumbUrl);
     setTimeout(() => {
       isSelfChangeRef.current = false;
@@ -173,6 +174,7 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     });
 
     fabricCanvasRef.current = canvas;
+    isDisposingRef.current = false;
 
     const initCanvasWithData = async () => {
       isLoadingRef.current = true;
@@ -211,7 +213,10 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     canvas.on('selection:cleared', handleSelection);
     canvas.on('object:modified', () => updateLayersList(false));
     canvas.on('object:added', () => updateLayersList(false));
-    canvas.on('object:removed', () => updateLayersList(false));
+    canvas.on('object:removed', () => {
+      if (!isDisposingRef.current) updateLayersList(false);
+    });
+    canvas.on('text:changed', () => updateLayersList(false));
 
     const handleMouseMove = (opt: any) => {
       if (onCursorMove) {
@@ -261,6 +266,8 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     window.addEventListener('resize', handleResize);
 
     return () => {
+      isDisposingRef.current = true;
+      canvas.off(); // Detach all listeners before disposing
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', handleResize);
       canvas.dispose();
