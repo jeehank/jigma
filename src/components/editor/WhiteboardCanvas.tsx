@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import getStroke from 'perfect-freehand';
 import { exportElementAsPng, exportAsSvg, exportElementAsPdf } from '../../lib/exportUtils';
 import { Trash2 } from 'lucide-react';
+import { CollaboratorCursors } from './CollaboratorCursors';
+import type { PresenceUser } from '../../types';
 
 interface Stroke {
   id: string;
@@ -26,6 +28,8 @@ interface WhiteboardCanvasProps {
   strokeColor: string;
   strokeWidth: number;
   zoomLevel: number;
+  collaborators?: PresenceUser[];
+  onCursorMove?: (x: number, y: number) => void;
 }
 
 const CYBER_STICKY_COLORS = ['#042f1a', '#064e3b', '#022c22', '#065f46', '#14532d'];
@@ -37,6 +41,8 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   strokeColor,
   strokeWidth,
   zoomLevel,
+  collaborators = [],
+  onCursorMove,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +56,20 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   const [currentStroke, setCurrentStroke] = useState<number[][] | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+
+  // Sync state if initialData changes externally (e.g. from realtime broadcast)
+  const isSelfChangeRef = useRef(false);
+
+  useEffect(() => {
+    if (initialData && !isSelfChangeRef.current) {
+      if (initialData.strokes && Array.isArray(initialData.strokes)) {
+        setStrokes(initialData.strokes);
+      }
+      if (initialData.stickyNotes && Array.isArray(initialData.stickyNotes)) {
+        setStickyNotes(initialData.stickyNotes);
+      }
+    }
+  }, [initialData]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -66,22 +86,29 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
+  const triggerChange = useCallback(
+    (newStrokes: Stroke[], newNotes: StickyNote[], currentPan: { x: number; y: number }) => {
+      isSelfChangeRef.current = true;
       const svgThumb = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="#0a0a0a"/><g transform="scale(0.3)"><path d="M50 50 L150 150 L250 80" stroke="#00ff66" stroke-width="8" fill="none"/></g></svg>`;
       const thumbUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svgThumb)}`;
-      onChangeData({ strokes, stickyNotes, pan }, thumbUrl);
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [strokes, stickyNotes, pan]);
+      onChangeData({ strokes: newStrokes, stickyNotes: newNotes, pan: currentPan }, thumbUrl);
+      setTimeout(() => {
+        isSelfChangeRef.current = false;
+      }, 100);
+    },
+    [onChangeData]
+  );
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    setPan((prev) => ({
-      x: prev.x - e.deltaX,
-      y: prev.y - e.deltaY,
-    }));
+    setPan((prev) => {
+      const next = {
+        x: prev.x - e.deltaX,
+        y: prev.y - e.deltaY,
+      };
+      triggerChange(strokes, stickyNotes, next);
+      return next;
+    });
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -101,6 +128,8 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     const x = (rawX - pan.x) / zoomLevel;
     const y = (rawY - pan.y) / zoomLevel;
 
+    onCursorMove?.(x, y);
+
     if (activeTool === 'sticky') {
       const newSticky: StickyNote = {
         id: 'sticky_' + Math.random().toString(36).slice(2, 7),
@@ -109,7 +138,9 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         text: 'New note...',
         color: CYBER_STICKY_COLORS[Math.floor(Math.random() * CYBER_STICKY_COLORS.length)],
       };
-      setStickyNotes([...stickyNotes, newSticky]);
+      const updatedNotes = [...stickyNotes, newSticky];
+      setStickyNotes(updatedNotes);
+      triggerChange(strokes, updatedNotes, pan);
       return;
     }
 
@@ -117,24 +148,25 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       setIsDrawing(true);
       setCurrentStroke([[x, y, e.pressure || 0.5]]);
     } else if (activeTool === 'eraser') {
-      setStrokes((prev) =>
-        prev.filter((st) => {
-          return !st.points.some(([px, py]) => Math.hypot(px - x, py - y) < 30);
-        })
-      );
+      const remainingStrokes = strokes.filter((st) => {
+        return !st.points.some(([px, py]) => Math.hypot(px - x, py - y) < 30);
+      });
+      setStrokes(remainingStrokes);
+      triggerChange(remainingStrokes, stickyNotes, pan);
     }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (isPanning) {
-      setPan({
+      const nextPan = {
         x: e.clientX - startPanRef.current.x,
         y: e.clientY - startPanRef.current.y,
-      });
+      };
+      setPan(nextPan);
       return;
     }
 
-    if (!isDrawing || !currentStroke || !containerRef.current) return;
+    if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const rawX = e.clientX - rect.left;
     const rawY = e.clientY - rect.top;
@@ -142,6 +174,20 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     const x = (rawX - pan.x) / zoomLevel;
     const y = (rawY - pan.y) / zoomLevel;
 
+    onCursorMove?.(x, y);
+
+    if (activeTool === 'eraser' && e.buttons === 1) {
+      const remainingStrokes = strokes.filter((st) => {
+        return !st.points.some(([px, py]) => Math.hypot(px - x, py - y) < 30);
+      });
+      if (remainingStrokes.length !== strokes.length) {
+        setStrokes(remainingStrokes);
+        triggerChange(remainingStrokes, stickyNotes, pan);
+      }
+      return;
+    }
+
+    if (!isDrawing || !currentStroke) return;
     setCurrentStroke((prev) => (prev ? [...prev, [x, y, e.pressure || 0.5]] : [[x, y, e.pressure || 0.5]]));
   };
 
@@ -150,6 +196,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
 
     if (isPanning) {
       setIsPanning(false);
+      triggerChange(strokes, stickyNotes, pan);
     }
 
     if (isDrawing && currentStroke && currentStroke.length > 0) {
@@ -160,13 +207,16 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         size: activeTool === 'highlighter' ? strokeWidth * 2.5 : strokeWidth,
         isHighlighter: activeTool === 'highlighter',
       };
-      setStrokes((prev) => [...prev, newStroke]);
+      const updatedStrokes = [...strokes, newStroke];
+      setStrokes(updatedStrokes);
+      triggerChange(updatedStrokes, stickyNotes, pan);
     }
     setIsDrawing(false);
     setCurrentStroke(null);
   };
 
   const getSvgPathFromStroke = (strokePoints: number[][], size: number) => {
+    if (!strokePoints || strokePoints.length === 0) return '';
     const stroke = getStroke(strokePoints, {
       size,
       thinning: 0.5,
@@ -187,11 +237,15 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   };
 
   const handleStickyTextChange = (id: string, text: string) => {
-    setStickyNotes((prev) => prev.map((s) => (s.id === id ? { ...s, text } : s)));
+    const updated = stickyNotes.map((s) => (s.id === id ? { ...s, text } : s));
+    setStickyNotes(updated);
+    triggerChange(strokes, updated, pan);
   };
 
   const handleDeleteSticky = (id: string) => {
-    setStickyNotes((prev) => prev.filter((s) => s.id !== id));
+    const updated = stickyNotes.filter((s) => s.id !== id);
+    setStickyNotes(updated);
+    triggerChange(strokes, updated, pan);
   };
 
   (window as any).__whiteboardCanvasActions = {
@@ -219,11 +273,11 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className={`w-full h-full relative overflow-hidden bg-black ${
+      className={`w-full h-full relative overflow-hidden bg-[#030704] select-none ${
         isPanning || activeTool === 'pan' || isSpacePressed ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair'
       }`}
       style={{
-        backgroundImage: 'radial-gradient(circle, rgba(255, 255, 255, 0.25) 1.2px, transparent 1.2px)',
+        backgroundImage: 'radial-gradient(circle, rgba(0, 255, 102, 0.15) 1.2px, transparent 1.2px)',
         backgroundSize: '24px 24px',
       }}
     >
@@ -234,7 +288,8 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
           transformOrigin: '0 0',
         }}
       >
-        <svg className="w-[10000px] h-[10000px] absolute -top-[5000px] -left-[5000px] pointer-events-none z-10">
+        {/* SVG Drawing Layer - Aligned with canvas coordinate origin */}
+        <svg className="w-full h-full absolute inset-0 overflow-visible pointer-events-none z-10">
           {strokes.map((st) => (
             <path
               key={st.id}
@@ -256,15 +311,16 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
           )}
         </svg>
 
+        {/* Sticky Notes Layer */}
         <div className="absolute inset-0 z-20 pointer-events-auto">
           {stickyNotes.map((sticky) => (
             <div
               key={sticky.id}
               style={{ left: sticky.x, top: sticky.y }}
-              className="absolute w-60 p-4 rounded-2xl shadow-2xl border border-white/20 bg-[#0a150f]/95 backdrop-blur-md group flex flex-col justify-between transition-transform duration-200 hover:scale-105 hover:z-30 font-mono"
+              className="absolute w-60 p-4 rounded-2xl shadow-2xl border border-emerald-500/30 bg-[#0a150f]/95 backdrop-blur-md group flex flex-col justify-between transition-transform duration-150 hover:scale-105 hover:z-30 font-mono"
             >
-              <div className="flex items-center justify-between mb-2 pb-1 border-b border-white/10">
-                <span className="text-[10px] uppercase font-bold text-gray-300 tracking-wider">
+              <div className="flex items-center justify-between mb-2 pb-1 border-b border-emerald-900/60">
+                <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">
                   NOTE CARD
                 </span>
                 <button
@@ -287,6 +343,13 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
             </div>
           ))}
         </div>
+
+        {/* Live Multiplayer Cursors in Whiteboard space */}
+        <CollaboratorCursors
+          collaborators={collaborators}
+          zoomLevel={1}
+          panOffset={{ x: 0, y: 0 }}
+        />
       </div>
     </div>
   );
