@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from './lib/supabase';
-import type { UserProfile, Project, ProjectType } from './types';
+import type { UserProfile, Project, ProjectType, PresenceUser, CanvasSyncPayload } from './types';
 import { AuthModal } from './components/auth/AuthModal';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { CreateProjectModal } from './components/dashboard/CreateProjectModal';
@@ -11,6 +11,9 @@ import { DesignToolbar } from './components/editor/DesignToolbar';
 import { DesignCanvas } from './components/editor/DesignCanvas';
 import { WhiteboardToolbar } from './components/editor/WhiteboardToolbar';
 import { WhiteboardCanvas } from './components/editor/WhiteboardCanvas';
+import { ShareModal } from './components/editor/ShareModal';
+import { PasswordPromptModal } from './components/editor/PasswordPromptModal';
+import { subscribeToProjectRoom } from './lib/realtime';
 
 export function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -29,6 +32,27 @@ export function App() {
   const [selectedElement, setSelectedElement] = useState<any | null>(null);
   const [elementsList, setElementsList] = useState<any[]>([]);
 
+  // Collaboration and Security state
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isPasswordPromptOpen, setIsPasswordPromptOpen] = useState(false);
+  const [pendingProtectedProject, setPendingProtectedProject] = useState<Project | null>(null);
+  const [collaborators, setCollaborators] = useState<PresenceUser[]>([]);
+  const [unlockedProjectIds, setUnlockedProjectIds] = useState<Set<string>>(() => {
+    try {
+      const saved = sessionStorage.getItem('jigma_unlocked_projects');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const realtimeRef = useRef<{
+    broadcastCanvas: (data: any) => void;
+    broadcastCursor: (x: number, y: number) => void;
+    unsubscribe: () => void;
+  } | null>(null);
+
+  // Authentication initialization
   useEffect(() => {
     const savedSession = localStorage.getItem('jigma_user_session');
     if (savedSession) {
@@ -73,6 +97,7 @@ export function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Fetch projects list for current user
   useEffect(() => {
     if (user) {
       fetchProjects();
@@ -85,7 +110,6 @@ export function App() {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .eq('user_id', user.id)
         .order('updated_at', { ascending: false });
 
       if (!error && data) {
@@ -94,7 +118,7 @@ export function App() {
         return;
       }
     } catch (e) {
-      console.warn('Supabase fetch error, using user fallback store', e);
+      console.warn('Supabase fetch error, using fallback store', e);
     }
 
     const local = localStorage.getItem(`figmaclone_projects_${user.id}`);
@@ -106,14 +130,154 @@ export function App() {
     }
   };
 
+  // URL Query Parameters parsing for Shared Project Links (?project=<id>)
+  useEffect(() => {
+    const checkUrlProject = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sharedId = urlParams.get('project') || urlParams.get('p');
+      if (!sharedId) return;
+
+      // Check if project exists in local state first
+      let project = projects.find((p) => p.id === sharedId);
+
+      if (!project) {
+        // Fetch project from Supabase
+        try {
+          const { data, error } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('id', sharedId)
+            .maybeSingle();
+
+          if (!error && data) {
+            project = data as Project;
+            setProjects((prev) => {
+              if (prev.some((p) => p.id === sharedId)) return prev;
+              return [project!, ...prev];
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to load shared project from Supabase:', e);
+        }
+      }
+
+      if (project) {
+        openProjectWithProtectionCheck(project);
+      }
+    };
+
+    checkUrlProject();
+  }, [projects]);
+
+  const openProjectWithProtectionCheck = (project: Project) => {
+    if (
+      project.is_password_protected &&
+      project.password &&
+      project.user_id !== user?.id &&
+      !unlockedProjectIds.has(project.id)
+    ) {
+      setPendingProtectedProject(project);
+      setIsPasswordPromptOpen(true);
+    } else {
+      setActiveProjectId(project.id);
+      const url = new URL(window.location.href);
+      url.searchParams.set('project', project.id);
+      window.history.replaceState({}, '', url.toString());
+    }
+  };
+
+  const handleVerifyPassword = (enteredPassword: string): boolean => {
+    if (pendingProtectedProject && pendingProtectedProject.password === enteredPassword) {
+      const nextUnlocked = new Set(unlockedProjectIds);
+      nextUnlocked.add(pendingProtectedProject.id);
+      setUnlockedProjectIds(nextUnlocked);
+      sessionStorage.setItem('jigma_unlocked_projects', JSON.stringify(Array.from(nextUnlocked)));
+
+      setActiveProjectId(pendingProtectedProject.id);
+      setIsPasswordPromptOpen(false);
+      setPendingProtectedProject(null);
+
+      const url = new URL(window.location.href);
+      url.searchParams.set('project', pendingProtectedProject.id);
+      window.history.replaceState({}, '', url.toString());
+      return true;
+    }
+    return false;
+  };
+
+  // Real-time Collaboration Channel Setup
+  useEffect(() => {
+    if (!activeProjectId) {
+      if (realtimeRef.current) {
+        realtimeRef.current.unsubscribe();
+        realtimeRef.current = null;
+      }
+      setCollaborators([]);
+      return;
+    }
+
+    const currentProfile = user || {
+      id: 'guest_' + Math.random().toString(36).slice(2, 7),
+      email: 'guest@jigma.app',
+      full_name: 'Collaborator',
+      avatar_url: `https://api.dicebear.com/7.x/identicon/svg?seed=guest`,
+    };
+
+    const channel = subscribeToProjectRoom(
+      activeProjectId,
+      {
+        id: currentProfile.id,
+        name: currentProfile.full_name || 'Guest User',
+        avatar_url: currentProfile.avatar_url,
+      },
+      {
+        onCanvasSync: (payload: CanvasSyncPayload) => {
+          if (payload.projectId === activeProjectId) {
+            setProjects((prev) =>
+              prev.map((p) =>
+                p.id === activeProjectId
+                  ? { ...p, data: payload.data, updated_at: new Date().toISOString() }
+                  : p
+              )
+            );
+          }
+        },
+        onCursorMove: (cursorUser: PresenceUser) => {
+          setCollaborators((prev) => {
+            const exists = prev.find((c) => c.id === cursorUser.id);
+            if (exists) {
+              return prev.map((c) => (c.id === cursorUser.id ? { ...c, ...cursorUser } : c));
+            }
+            return [...prev, cursorUser];
+          });
+        },
+        onPresenceUpdate: (onlineUsers: PresenceUser[]) => {
+          setCollaborators(onlineUsers);
+        },
+      }
+    );
+
+    realtimeRef.current = channel;
+
+    return () => {
+      channel.unsubscribe();
+      realtimeRef.current = null;
+    };
+  }, [activeProjectId, user]);
+
+  const handleBroadcastCursor = useCallback((x: number, y: number) => {
+    realtimeRef.current?.broadcastCursor(x, y);
+  }, []);
+
   const handleCreateProject = async (title: string, type: ProjectType) => {
-    if (!user) return;
+    const currentUserId = user?.id || 'anon_user';
     const newProj: Project = {
       id: crypto.randomUUID(),
-      user_id: user.id,
+      user_id: currentUserId,
       title,
       type,
       data: {},
+      is_password_protected: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -121,10 +285,11 @@ export function App() {
     try {
       await supabase.from('projects').insert({
         id: newProj.id,
-        user_id: user.id,
+        user_id: currentUserId,
         title: newProj.title,
         type: newProj.type,
         data: newProj.data,
+        is_password_protected: false,
       });
     } catch (e) {
       console.error('Failed to insert project into Supabase:', e);
@@ -132,15 +297,17 @@ export function App() {
 
     const updated = [newProj, ...projects];
     setProjects(updated);
-    localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    if (user) {
+      localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    }
     setIsCreateModalOpen(false);
-    setActiveProjectId(newProj.id);
+    openProjectWithProtectionCheck(newProj);
   };
 
   const handleDeleteProject = async (id: string) => {
     if (!user) return;
     try {
-      await supabase.from('projects').delete().eq('id', id).eq('user_id', user.id);
+      await supabase.from('projects').delete().eq('id', id);
     } catch (e) {
       console.error('Failed to delete project from Supabase:', e);
     }
@@ -151,11 +318,11 @@ export function App() {
   };
 
   const handleDuplicateProject = async (project: Project) => {
-    if (!user) return;
+    const currentUserId = user?.id || 'anon_user';
     const duplicated: Project = {
       ...project,
       id: crypto.randomUUID(),
-      user_id: user.id,
+      user_id: currentUserId,
       title: `${project.title} (Copy)`,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -164,10 +331,12 @@ export function App() {
     try {
       await supabase.from('projects').insert({
         id: duplicated.id,
-        user_id: user.id,
+        user_id: currentUserId,
         title: duplicated.title,
         type: duplicated.type,
         data: duplicated.data,
+        is_password_protected: duplicated.is_password_protected,
+        password: duplicated.password,
       });
     } catch (e) {
       console.error('Failed to duplicate project in Supabase:', e);
@@ -175,11 +344,17 @@ export function App() {
 
     const updated = [duplicated, ...projects];
     setProjects(updated);
-    localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    if (user) {
+      localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    }
   };
 
   const handleUpdateProjectData = async (data: any, thumbnailUrl?: string) => {
-    if (!activeProjectId || !user) return;
+    if (!activeProjectId) return;
+
+    // Broadcast canvas changes to all live peers in real-time
+    realtimeRef.current?.broadcastCanvas(data);
+
     const updated = projects.map((p) =>
       p.id === activeProjectId
         ? {
@@ -191,7 +366,9 @@ export function App() {
         : p
     );
     setProjects(updated);
-    localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    if (user) {
+      localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    }
 
     try {
       await supabase
@@ -201,30 +378,65 @@ export function App() {
           thumbnail_url: thumbnailUrl || undefined,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', activeProjectId)
-        .eq('user_id', user.id);
+        .eq('id', activeProjectId);
     } catch (e) {
       console.error('Failed to update project data in Supabase:', e);
     }
   };
 
   const handleUpdateTitle = async (newTitle: string) => {
-    if (!activeProjectId || !user) return;
+    if (!activeProjectId) return;
     const updated = projects.map((p) =>
       p.id === activeProjectId ? { ...p, title: newTitle } : p
     );
     setProjects(updated);
-    localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    if (user) {
+      localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    }
 
     try {
       await supabase
         .from('projects')
         .update({ title: newTitle, updated_at: new Date().toISOString() })
-        .eq('id', activeProjectId)
-        .eq('user_id', user.id);
+        .eq('id', activeProjectId);
     } catch (e) {
       console.error('Failed to update title in Supabase:', e);
     }
+  };
+
+  const handleUpdateSecurity = async (isProtected: boolean, password?: string) => {
+    if (!activeProjectId) return;
+    const updated = projects.map((p) =>
+      p.id === activeProjectId
+        ? { ...p, is_password_protected: isProtected, password: password || undefined }
+        : p
+    );
+    setProjects(updated);
+    if (user) {
+      localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(updated));
+    }
+
+    try {
+      await supabase
+        .from('projects')
+        .update({
+          is_password_protected: isProtected,
+          password: password || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', activeProjectId);
+    } catch (e) {
+      console.error('Failed to update security in Supabase:', e);
+    }
+  };
+
+  const handleBackToDashboard = () => {
+    setActiveProjectId(null);
+    setSelectedElement(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('project');
+    url.searchParams.delete('p');
+    window.history.replaceState({}, '', url.pathname);
   };
 
   const activeProject = projects.find((p) => p.id === activeProjectId);
@@ -240,7 +452,10 @@ export function App() {
           <Dashboard
             user={user}
             projects={projects}
-            onOpenProject={(id) => setActiveProjectId(id)}
+            onOpenProject={(id) => {
+              const target = projects.find((p) => p.id === id);
+              if (target) openProjectWithProtectionCheck(target);
+            }}
             onCreateProjectClick={() => setIsCreateModalOpen(true)}
             onDeleteProject={handleDeleteProject}
             onDuplicateProject={handleDuplicateProject}
@@ -260,6 +475,19 @@ export function App() {
           onClose={() => setIsCreateModalOpen(false)}
           onCreate={handleCreateProject}
         />
+
+        {pendingProtectedProject && (
+          <PasswordPromptModal
+            isOpen={isPasswordPromptOpen}
+            projectTitle={pendingProtectedProject.title}
+            onVerify={handleVerifyPassword}
+            onCancel={() => {
+              setIsPasswordPromptOpen(false);
+              setPendingProtectedProject(null);
+              handleBackToDashboard();
+            }}
+          />
+        )}
       </>
     );
   }
@@ -269,7 +497,8 @@ export function App() {
       <EditorHeader
         project={activeProject}
         onUpdateTitle={handleUpdateTitle}
-        onBackToDashboard={() => setActiveProjectId(null)}
+        onBackToDashboard={handleBackToDashboard}
+        onOpenShareModal={() => setIsShareModalOpen(true)}
         onExportPng={() => {
           if (activeProject.type === 'design') {
             (window as any).__designCanvasActions?.exportPng();
@@ -295,19 +524,7 @@ export function App() {
         onZoomIn={() => setZoomLevel((z) => Math.min(2.5, z + 0.1))}
         onZoomOut={() => setZoomLevel((z) => Math.max(0.4, z - 0.1))}
         onResetZoom={() => setZoomLevel(1)}
-        collaborators={
-          user
-            ? [
-                {
-                  id: user.id,
-                  name: user.full_name || 'You',
-                  color: '#00ff66',
-                  x: 0,
-                  y: 0,
-                },
-              ]
-            : []
-        }
+        collaborators={collaborators}
       />
 
       <div className="flex-1 flex relative overflow-hidden">
@@ -332,6 +549,8 @@ export function App() {
                 onSelectElement={setSelectedElement}
                 onUpdateElementsList={setElementsList}
                 zoomLevel={zoomLevel}
+                collaborators={collaborators}
+                onCursorMove={handleBroadcastCursor}
               />
               <DesignToolbar
                 activeTool={activeDesignTool}
@@ -353,6 +572,8 @@ export function App() {
                 strokeColor={whiteboardColor}
                 strokeWidth={whiteboardWidth}
                 zoomLevel={zoomLevel}
+                collaborators={collaborators}
+                onCursorMove={handleBroadcastCursor}
               />
               <WhiteboardToolbar
                 activeTool={activeWhiteboardTool}
@@ -379,6 +600,29 @@ export function App() {
           />
         )}
       </div>
+
+      {/* Share and Security Dialog */}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        project={activeProject}
+        collaborators={collaborators}
+        onUpdateSecurity={handleUpdateSecurity}
+      />
+
+      {/* Password Prompt when opening password-protected project */}
+      {pendingProtectedProject && (
+        <PasswordPromptModal
+          isOpen={isPasswordPromptOpen}
+          projectTitle={pendingProtectedProject.title}
+          onVerify={handleVerifyPassword}
+          onCancel={() => {
+            setIsPasswordPromptOpen(false);
+            setPendingProtectedProject(null);
+            handleBackToDashboard();
+          }}
+        />
+      )}
     </div>
   );
 }
