@@ -11,6 +11,14 @@ import {
   Download,
   Eye,
   Trash2,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Italic,
+  Underline,
+  Strikethrough,
+  Sparkles,
 } from 'lucide-react';
 
 interface RightSidebarProps {
@@ -43,6 +51,20 @@ const BLEND_MODES: { label: string; value: BlendMode }[] = [
   { label: 'Luminosity', value: 'luminosity' },
 ];
 
+const GOOGLE_FONTS = [
+  { name: 'Inter', label: 'Inter (Modern Sans)' },
+  { name: 'Roboto', label: 'Roboto (Clean Sans)' },
+  { name: 'Outfit', label: 'Outfit (Geometric UI)' },
+  { name: 'Poppins', label: 'Poppins (Contemporary)' },
+  { name: 'Space Grotesk', label: 'Space Grotesk (Tech Neo)' },
+  { name: 'Montserrat', label: 'Montserrat (Bold Clean)' },
+  { name: 'Playfair Display', label: 'Playfair Display (Editorial Serif)' },
+  { name: 'Bebas Neue', label: 'Bebas Neue (Display Impact)' },
+  { name: 'Pacifico', label: 'Pacifico (Handwritten Script)' },
+  { name: 'Oswald', label: 'Oswald (Condensed Sans)' },
+  { name: 'Fira Code', label: 'Fira Code (Developer Mono)' },
+];
+
 export const RightSidebar: React.FC<RightSidebarProps> = ({
   selectedElement,
   onUpdateElement,
@@ -53,38 +75,51 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   onExportSvg,
   onExportPdf,
 }) => {
+  const isFrame = selectedElement?.isFrame || selectedElement?.name?.includes('Frame') || false;
+
+  const handleExportFrame = (format: 'png' | 'svg' | 'pdf') => {
+    (window as any).__designCanvasActions?.exportFrame(format);
+  };
+
   if (!selectedElement) {
     return (
-      <aside className="w-72 glass-panel border-l border-emerald-500/30 p-5 flex flex-col justify-between text-gray-400 text-xs overflow-y-auto font-mono">
+      <aside className="w-80 glass-panel border-l border-emerald-500/30 p-5 flex flex-col justify-between text-gray-400 text-xs overflow-y-auto font-mono">
         <div>
           <h3 className="font-bold text-white uppercase tracking-wider text-[11px] mb-4">PROPERTIES</h3>
           <div className="p-4 bg-black/60 rounded-xl border border-emerald-900/60 text-center">
             <Layers className="w-8 h-8 text-emerald-600 mx-auto mb-2" />
-            <p className="text-emerald-400/80 text-xs">Select an element on canvas to edit properties, blend modes, exposure, tint, or delete.</p>
+            <p className="text-emerald-400/80 text-xs">
+              Select an element or frame on canvas to adjust typography, exposure, color filters, blend modes, or export parts.
+            </p>
           </div>
         </div>
 
-        <div className="space-y-2 pt-4 border-t border-emerald-900/60">
-          <h4 className="font-bold text-white uppercase tracking-wider text-[10px]">Export Project</h4>
+        <div className="space-y-3 pt-4 border-t border-emerald-900/60">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-white uppercase tracking-wider text-[10px]">Export Options</h4>
+            <span className="text-[10px] text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-500/30">
+              Canvas
+            </span>
+          </div>
           <button
             onClick={onExportPng}
             className="w-full py-2 px-3 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 rounded-lg flex items-center justify-between transition-colors"
           >
-            <span>Export PNG</span>
+            <span>Export Canvas PNG</span>
             <Download className="w-3.5 h-3.5 text-emerald-400" />
           </button>
           <button
             onClick={onExportSvg}
             className="w-full py-2 px-3 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 rounded-lg flex items-center justify-between transition-colors"
           >
-            <span>Export SVG</span>
+            <span>Export Canvas SVG</span>
             <Download className="w-3.5 h-3.5 text-emerald-400" />
           </button>
           <button
             onClick={onExportPdf}
             className="w-full py-2 px-3 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 rounded-lg flex items-center justify-between transition-colors"
           >
-            <span>Export PDF</span>
+            <span>Export Canvas PDF</span>
             <Download className="w-3.5 h-3.5 text-emerald-400" />
           </button>
         </div>
@@ -112,23 +147,25 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   };
 
   return (
-    <aside className="w-80 glass-panel border-l border-emerald-500/30 p-5 space-y-6 text-xs text-gray-200 overflow-y-auto max-h-screen font-mono">
+    <aside className="w-80 glass-panel border-l border-emerald-500/30 p-5 space-y-5 text-xs text-gray-200 overflow-y-auto max-h-screen font-mono">
       <div className="flex items-center justify-between pb-3 border-b border-emerald-900/60">
         <h3 className="font-bold text-white uppercase tracking-wider text-[11px] flex items-center space-x-2">
           <Palette className="w-4 h-4 text-emerald-400" />
-          <span>{selectedElement.type.toUpperCase()} Properties</span>
+          <span>{isFrame ? 'FRAME ARTBOARD' : `${selectedElement.type.toUpperCase()} Properties`}</span>
         </h3>
         <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
-          ID: {selectedElement.id.slice(0, 5)}
+          {isFrame ? 'FRAME' : `ID: ${selectedElement.id.slice(0, 5)}`}
         </span>
       </div>
 
+      {/* Quick Actions */}
       <div className="space-y-2">
         <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Quick Actions</h4>
         <div className="grid grid-cols-3 gap-2">
           <button
             onClick={onConvertToFrame}
             className="py-2 px-2 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/40 rounded-xl flex items-center justify-center space-x-1 transition-all text-[11px] font-bold"
+            title="Convert selection to Frame Artboard"
           >
             <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
             <span>Frame</span>
@@ -157,7 +194,224 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </div>
       </div>
 
-      <div className="space-y-3">
+      {/* Frame Artboard Export Section (Export Frame Only) */}
+      {isFrame && (
+        <div className="p-3.5 bg-emerald-950/40 rounded-2xl border border-emerald-500/40 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[10px] uppercase font-extrabold text-emerald-300 tracking-wider flex items-center space-x-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Export Frame Only</span>
+            </h4>
+            <span className="text-[9px] bg-emerald-500 text-black font-bold px-1.5 py-0.5 rounded uppercase">
+              Cropped
+            </span>
+          </div>
+          <p className="text-[10px] text-gray-300 font-sans leading-tight">
+            Exports precisely what is inside this frame artboard.
+          </p>
+          <div className="grid grid-cols-3 gap-1.5 pt-1">
+            <button
+              onClick={() => handleExportFrame('png')}
+              className="py-1.5 px-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg text-[10px] uppercase transition-colors"
+            >
+              Frame PNG
+            </button>
+            <button
+              onClick={() => handleExportFrame('svg')}
+              className="py-1.5 px-2 bg-emerald-900 hover:bg-emerald-800 text-emerald-200 border border-emerald-500/40 font-bold rounded-lg text-[10px] uppercase transition-colors"
+            >
+              Frame SVG
+            </button>
+            <button
+              onClick={() => handleExportFrame('pdf')}
+              className="py-1.5 px-2 bg-emerald-900 hover:bg-emerald-800 text-emerald-200 border border-emerald-500/40 font-bold rounded-lg text-[10px] uppercase transition-colors"
+            >
+              Frame PDF
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Typography Section for Text Elements */}
+      {selectedElement.type === 'text' && (
+        <div className="space-y-3 pt-3 border-t border-emerald-900/60">
+          <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center space-x-1.5">
+            <Type className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Typography</span>
+          </h4>
+
+          {/* Text Content */}
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Text Content</label>
+            <input
+              type="text"
+              value={selectedElement.text || ''}
+              onChange={(e) => onUpdateElement({ text: e.target.value })}
+              className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-400 font-mono"
+            />
+          </div>
+
+          {/* Font Family Selector */}
+          <div>
+            <label className="block text-[10px] text-gray-400 mb-1">Font Family</label>
+            <select
+              value={selectedElement.fontFamily || 'Inter'}
+              onChange={(e) => onUpdateElement({ fontFamily: e.target.value })}
+              className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-emerald-300 text-xs focus:outline-none focus:border-emerald-400 font-bold"
+              style={{ fontFamily: selectedElement.fontFamily || 'Inter' }}
+            >
+              {GOOGLE_FONTS.map((font) => (
+                <option
+                  key={font.name}
+                  value={font.name}
+                  style={{ fontFamily: font.name }}
+                  className="bg-black text-white py-1"
+                >
+                  {font.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Font Size & Weight */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] text-gray-400 mb-1">Font Size (px)</label>
+              <input
+                type="number"
+                min="8"
+                max="240"
+                value={selectedElement.fontSize || 24}
+                onChange={(e) => onUpdateElement({ fontSize: parseInt(e.target.value) || 24 })}
+                className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-400 font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] text-gray-400 mb-1">Weight</label>
+              <select
+                value={selectedElement.fontWeight || '400'}
+                onChange={(e) => onUpdateElement({ fontWeight: e.target.value })}
+                className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-emerald-300 text-xs focus:outline-none focus:border-emerald-400 font-mono"
+              >
+                <option value="300">Light (300)</option>
+                <option value="400">Regular (400)</option>
+                <option value="600">Semi Bold (600)</option>
+                <option value="700">Bold (700)</option>
+                <option value="900">Black (900)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Text Alignment & Styles */}
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="flex bg-black p-1 rounded-xl border border-emerald-900/60">
+              <button
+                type="button"
+                onClick={() => onUpdateElement({ textAlign: 'left' })}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  (selectedElement.textAlign || 'left') === 'left'
+                    ? 'bg-emerald-500 text-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Align Left"
+              >
+                <AlignLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateElement({ textAlign: 'center' })}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  selectedElement.textAlign === 'center'
+                    ? 'bg-emerald-500 text-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Align Center"
+              >
+                <AlignCenter className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateElement({ textAlign: 'right' })}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  selectedElement.textAlign === 'right'
+                    ? 'bg-emerald-500 text-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Align Right"
+              >
+                <AlignRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateElement({ textAlign: 'justify' })}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  selectedElement.textAlign === 'justify'
+                    ? 'bg-emerald-500 text-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Justify"
+              >
+                <AlignJustify className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="flex bg-black p-1 rounded-xl border border-emerald-900/60">
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    fontStyle: selectedElement.fontStyle === 'italic' ? 'normal' : 'italic',
+                  })
+                }
+                className={`p-1.5 rounded-lg transition-colors ${
+                  selectedElement.fontStyle === 'italic'
+                    ? 'bg-emerald-500 text-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Italic"
+              >
+                <Italic className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    underline: !selectedElement.underline,
+                  })
+                }
+                className={`p-1.5 rounded-lg transition-colors ${
+                  selectedElement.underline
+                    ? 'bg-emerald-500 text-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Underline"
+              >
+                <Underline className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateElement({
+                    linethrough: !selectedElement.linethrough,
+                  })
+                }
+                className={`p-1.5 rounded-lg transition-colors ${
+                  selectedElement.linethrough
+                    ? 'bg-emerald-500 text-black'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Strikethrough"
+              >
+                <Strikethrough className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fill & Stroke */}
+      <div className="space-y-3 pt-3 border-t border-emerald-900/60">
         <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Fill & Stroke</h4>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -208,6 +462,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </div>
       </div>
 
+      {/* Layer Blend Mode */}
       <div className="space-y-2">
         <label className="block text-[10px] uppercase font-bold text-emerald-400 tracking-wider">
           Layer Blend Mode
@@ -225,12 +480,39 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         </select>
       </div>
 
+      {/* Color Grading & Exposure Adjustments */}
       <div className="space-y-4 pt-4 border-t border-emerald-900/60">
-        <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center space-x-1.5">
-          <Sliders className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Color Grading & Exposure</span>
-        </h4>
+        <div className="flex items-center justify-between">
+          <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center space-x-1.5">
+            <Sliders className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Color Grading & Exposure</span>
+          </h4>
+          <button
+            type="button"
+            onClick={() =>
+              onUpdateElement({
+                adjustments: {
+                  exposure: 0,
+                  tint: 0,
+                  temperature: 0,
+                  brightness: 0,
+                  contrast: 0,
+                  saturation: 0,
+                  hueShift: 0,
+                  blur: 0,
+                  sepia: 0,
+                  grayscale: 0,
+                  invert: 0,
+                },
+              })
+            }
+            className="text-[10px] text-emerald-500 hover:text-emerald-300"
+          >
+            Reset
+          </button>
+        </div>
 
+        {/* Exposure */}
         <div>
           <div className="flex justify-between text-[10px] text-gray-300 mb-1">
             <span className="flex items-center space-x-1">
@@ -249,6 +531,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           />
         </div>
 
+        {/* Tint */}
         <div>
           <div className="flex justify-between text-[10px] text-gray-300 mb-1">
             <span>Tint (Green / Magenta)</span>
@@ -264,6 +547,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           />
         </div>
 
+        {/* Temperature */}
         <div>
           <div className="flex justify-between text-[10px] text-gray-300 mb-1">
             <span className="flex items-center space-x-1">
@@ -282,7 +566,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3 pt-2">
+        {/* Brightness & Contrast */}
+        <div className="grid grid-cols-2 gap-3 pt-1">
           <div>
             <div className="flex justify-between text-[10px] text-gray-400 mb-1">
               <span>Brightness</span>
@@ -314,6 +599,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           </div>
         </div>
 
+        {/* Saturation & Hue Shift */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <div className="flex justify-between text-[10px] text-gray-400 mb-1">
@@ -345,55 +631,40 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             />
           </div>
         </div>
-      </div>
 
-      {selectedElement.type === 'text' && (
-        <div className="space-y-3 pt-4 border-t border-emerald-900/60">
-          <h4 className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider flex items-center space-x-1.5">
-            <Type className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Typography</span>
-          </h4>
-
+        {/* Blur & Grayscale */}
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-[10px] text-gray-400 mb-1">Text Content</label>
+            <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+              <span>Blur</span>
+              <span>{adjustments.blur}</span>
+            </div>
             <input
-              type="text"
-              value={selectedElement.text || ''}
-              onChange={(e) => onUpdateElement({ text: e.target.value })}
-              className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-400 font-mono"
+              type="range"
+              min="0"
+              max="100"
+              value={adjustments.blur || 0}
+              onChange={(e) => handleAdjustmentChange('blur', parseInt(e.target.value))}
+              className="w-full accent-emerald-400 bg-black rounded-lg cursor-pointer"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] text-gray-400 mb-1">Font Size</label>
-              <input
-                type="number"
-                min="8"
-                max="200"
-                value={selectedElement.fontSize || 24}
-                onChange={(e) => onUpdateElement({ fontSize: parseInt(e.target.value) || 24 })}
-                className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-white text-xs focus:outline-none focus:border-emerald-400 font-mono"
-              />
+          <div>
+            <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+              <span>Grayscale</span>
+              <span>{adjustments.grayscale || 0}%</span>
             </div>
-
-            <div>
-              <label className="block text-[10px] text-gray-400 mb-1">Font Weight</label>
-              <select
-                value={selectedElement.fontWeight || '400'}
-                onChange={(e) => onUpdateElement({ fontWeight: e.target.value })}
-                className="w-full px-3 py-2 bg-black border border-emerald-900/60 rounded-xl text-emerald-300 text-xs focus:outline-none focus:border-emerald-400 font-mono"
-              >
-                <option value="300">Light</option>
-                <option value="400">Regular</option>
-                <option value="600">Semi Bold</option>
-                <option value="700">Bold</option>
-                <option value="900">Black</option>
-              </select>
-            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={adjustments.grayscale || 0}
+              onChange={(e) => handleAdjustmentChange('grayscale', parseInt(e.target.value))}
+              className="w-full accent-emerald-400 bg-black rounded-lg cursor-pointer"
+            />
           </div>
         </div>
-      )}
+      </div>
     </aside>
   );
 };
