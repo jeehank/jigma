@@ -538,8 +538,12 @@ export function App() {
             onDeleteProject={handleDeleteProject}
             onDuplicateProject={handleDuplicateProject}
             onToggleStar={handleToggleStarProject}
-            onSignOut={() => {
-              supabase.auth.signOut();
+            onSignOut={async () => {
+              try {
+                await supabase.auth.signOut();
+              } catch (err) {
+                console.error('Sign out error:', err);
+              }
               localStorage.removeItem('jigma_user_session');
               setUser(null);
               setProjects([]);
