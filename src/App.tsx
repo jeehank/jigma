@@ -24,7 +24,10 @@ export function App() {
       if (savedUser) {
         const u = JSON.parse(savedUser);
         const local = localStorage.getItem(`figmaclone_projects_${u.id}`);
-        if (local) return JSON.parse(local);
+        if (local) {
+          const parsed = JSON.parse(local);
+          return Array.isArray(parsed) ? parsed.filter((p: Project) => p.user_id === u.id) : [];
+        }
       }
     } catch (e) {}
     return [];
@@ -101,6 +104,10 @@ export function App() {
         setUser(uProfile);
         localStorage.setItem('jigma_user_session', JSON.stringify(uProfile));
         setIsAuthOpen(false);
+      } else if (!savedSession) {
+        setUser(null);
+        setProjects([]);
+        localStorage.removeItem('jigma_user_session');
       }
     });
 
@@ -109,36 +116,57 @@ export function App() {
 
   const isValidUUID = (id?: string) => !!id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-  // Fetch projects list for current user
+  // Fetch projects list strictly for current user
   useEffect(() => {
-    if (user) {
-      fetchProjects();
+    if (user?.id) {
+      const local = localStorage.getItem(`figmaclone_projects_${user.id}`);
+      if (local) {
+        try {
+          const parsed = JSON.parse(local);
+          setProjects(Array.isArray(parsed) ? parsed.filter((p: Project) => p.user_id === user.id) : []);
+        } catch {
+          setProjects([]);
+        }
+      } else {
+        setProjects([]);
+      }
+      fetchProjects(user.id);
+    } else {
+      setProjects([]);
     }
-  }, [user]);
+  }, [user?.id]);
 
-  const fetchProjects = async () => {
-    if (!user) return;
+  const fetchProjects = async (userIdOverride?: string) => {
+    const currentUserId = userIdOverride || user?.id;
+    if (!currentUserId) return;
     try {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
+        .eq('user_id', currentUserId)
         .order('updated_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         setProjects(data as Project[]);
-        localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify(data));
+        localStorage.setItem(`figmaclone_projects_${currentUserId}`, JSON.stringify(data));
         return;
       }
     } catch (e) {
       console.warn('Supabase fetch error, using fallback store', e);
     }
 
-    const local = localStorage.getItem(`figmaclone_projects_${user.id}`);
+    const local = localStorage.getItem(`figmaclone_projects_${currentUserId}`);
     if (local) {
-      setProjects(JSON.parse(local));
+      try {
+        const parsed = JSON.parse(local);
+        const userProjects = Array.isArray(parsed) ? parsed.filter((p: Project) => p.user_id === currentUserId) : [];
+        setProjects(userProjects);
+      } catch {
+        setProjects([]);
+      }
     } else {
       setProjects([]);
-      localStorage.setItem(`figmaclone_projects_${user.id}`, JSON.stringify([]));
+      localStorage.setItem(`figmaclone_projects_${currentUserId}`, JSON.stringify([]));
     }
   };
 
