@@ -222,8 +222,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button
               onClick={() => setSidebarView('recents')}
               className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${sidebarView === 'recents'
-                  ? 'bg-[#1d2b23] text-emerald-300 shadow-sm border border-emerald-500/20'
-                  : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
+                ? 'bg-[#1d2b23] text-emerald-300 shadow-sm border border-emerald-500/20'
+                : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
                 }`}
             >
               <Clock className={`w-4 h-4 ${sidebarView === 'recents' ? 'text-emerald-400' : 'text-gray-400'}`} />
@@ -252,8 +252,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button
               onClick={() => setSidebarView('drafts')}
               className={`w-full flex items-center space-x-2.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${sidebarView === 'drafts'
-                  ? 'bg-[#1d2b23] text-emerald-300 shadow-sm border border-emerald-500/20'
-                  : 'text-gray-300 hover:text-white hover:bg-white/[0.04]'
+                ? 'bg-[#1d2b23] text-emerald-300 shadow-sm border border-emerald-500/20'
+                : 'text-gray-300 hover:text-white hover:bg-white/[0.04]'
                 }`}
             >
               <FileText className={`w-3.5 h-3.5 ${sidebarView === 'drafts' ? 'text-emerald-400' : 'text-gray-400'}`} />
@@ -263,8 +263,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button
               onClick={() => setSidebarView('all')}
               className={`w-full flex items-center space-x-2.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${sidebarView === 'all'
-                  ? 'bg-[#1d2b23] text-emerald-300 shadow-sm border border-emerald-500/20'
-                  : 'text-gray-300 hover:text-white hover:bg-white/[0.04]'
+                ? 'bg-[#1d2b23] text-emerald-300 shadow-sm border border-emerald-500/20'
+                : 'text-gray-300 hover:text-white hover:bg-white/[0.04]'
                 }`}
             >
               <LayoutGrid className={`w-3.5 h-3.5 ${sidebarView === 'all' ? 'text-emerald-400' : 'text-gray-400'}`} />
@@ -274,8 +274,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button
               onClick={() => setSidebarView('resources')}
               className={`w-full flex items-center space-x-2.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${sidebarView === 'resources'
-                  ? 'bg-[#1d2b23] text-emerald-300 shadow-sm border border-emerald-500/20'
-                  : 'text-gray-300 hover:text-white hover:bg-white/[0.04]'
+                ? 'bg-[#1d2b23] text-emerald-300 shadow-sm border border-emerald-500/20'
+                : 'text-gray-300 hover:text-white hover:bg-white/[0.04]'
                 }`}
             >
               <Boxes className={`w-3.5 h-3.5 ${sidebarView === 'resources' ? 'text-emerald-400' : 'text-gray-400'}`} />
@@ -285,8 +285,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button
               onClick={() => setSidebarView('trash')}
               className={`w-full flex items-center space-x-2.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${sidebarView === 'trash'
-                  ? 'bg-[#1d2b23] text-red-300 shadow-sm border border-red-500/20'
-                  : 'text-gray-300 hover:text-white hover:bg-white/[0.04]'
+                ? 'bg-[#1d2b23] text-red-300 shadow-sm border border-red-500/20'
+                : 'text-gray-300 hover:text-white hover:bg-white/[0.04]'
                 }`}
             >
               <Trash2 className={`w-3.5 h-3.5 ${sidebarView === 'trash' ? 'text-red-400' : 'text-gray-400'}`} />
@@ -296,8 +296,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button
               onClick={() => setSidebarView('admin')}
               className={`w-full flex items-center space-x-2.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${sidebarView === 'admin'
-                  ? 'bg-[#1d2b23] text-emerald-300 shadow-sm border border-emerald-500/20'
-                  : 'text-gray-300 hover:text-white hover:bg-white/[0.04]'
+                ? 'bg-[#1d2b23] text-emerald-300 shadow-sm border border-emerald-500/20'
+                : 'text-gray-300 hover:text-white hover:bg-white/[0.04]'
                 }`}
             >
               <Settings className={`w-3.5 h-3.5 ${sidebarView === 'admin' ? 'text-emerald-400' : 'text-gray-400'}`} />
@@ -459,7 +459,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div>
                 <h2 className="text-lg font-bold text-white font-syne flex items-center space-x-2">
                   <Settings className="w-5 h-5 text-emerald-400" />
-                  <span>Workspace Settings: X-Celsior'2026</span>
+                  <span>Workspace Settings:</span>
                 </h2>
                 <p className="text-xs text-gray-400 mt-0.5">
                   Manage members, permissions, and cloud persistence.
@@ -513,8 +513,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     onClick={() => setActiveTab('recents')}
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${activeTab === 'recents'
-                        ? 'bg-white/[0.12] text-white shadow-sm'
-                        : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
+                      ? 'bg-white/[0.12] text-white shadow-sm'
+                      : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
                       }`}
                   >
                     Recently viewed
@@ -522,8 +522,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     onClick={() => setActiveTab('shared_files')}
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${activeTab === 'shared_files'
-                        ? 'bg-white/[0.12] text-white shadow-sm'
-                        : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
+                      ? 'bg-white/[0.12] text-white shadow-sm'
+                      : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
                       }`}
                   >
                     Shared files
@@ -531,8 +531,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <button
                     onClick={() => setActiveTab('shared_projects')}
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${activeTab === 'shared_projects'
-                        ? 'bg-white/[0.12] text-white shadow-sm'
-                        : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
+                      ? 'bg-white/[0.12] text-white shadow-sm'
+                      : 'text-gray-400 hover:text-white hover:bg-white/[0.04]'
                       }`}
                   >
                     Shared projects
