@@ -10,6 +10,8 @@ import {
   ArrowUpRight,
   Eye,
   Trash2,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 
 interface DesignToolbarProps {
@@ -21,6 +23,8 @@ interface DesignToolbarProps {
   onConvertToFrame: () => void;
   onToggleMask: () => void;
   onDeleteSelected: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 export const DesignToolbar: React.FC<DesignToolbarProps> = ({
@@ -32,6 +36,8 @@ export const DesignToolbar: React.FC<DesignToolbarProps> = ({
   onConvertToFrame,
   onToggleMask,
   onDeleteSelected,
+  onUndo,
+  onRedo,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,6 +56,24 @@ export const DesignToolbar: React.FC<DesignToolbarProps> = ({
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 glass-panel px-3 py-2 rounded-2xl shadow-2xl border border-emerald-500/40 flex items-center space-x-1.5 backdrop-blur-xl font-mono">
+      <button
+        onClick={onUndo}
+        className="p-2.5 text-emerald-400 hover:text-white hover:bg-emerald-950/60 rounded-xl transition-all"
+        title="Undo (Ctrl+Z)"
+      >
+        <Undo2 className="w-4 h-4" />
+      </button>
+
+      <button
+        onClick={onRedo}
+        className="p-2.5 text-emerald-400 hover:text-white hover:bg-emerald-950/60 rounded-xl transition-all"
+        title="Redo (Ctrl+Shift+Z)"
+      >
+        <Redo2 className="w-4 h-4" />
+      </button>
+
+      <div className="h-5 w-px bg-emerald-900/60" />
+
       <button
         onClick={() => onSelectTool('select')}
         className={`p-2.5 rounded-xl transition-all ${
