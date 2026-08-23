@@ -57,16 +57,63 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
 
-  // Sync state if initialData changes externally (e.g. from realtime broadcast)
+  // Eraser visual trail & hover indicator
+  const [eraserPos, setEraserPos] = useState<{ x: number; y: number } | null>(null);
+  const [eraserTrail, setEraserTrail] = useState<{ x: number; y: number; id: number }[]>([]);
+  const isErasingRef = useRef(false);
+  const lastErasePosRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Sync state if initialData changes externally with smart ID-merging to prevent clobbering simultaneous edits
   const isSelfChangeRef = useRef(false);
 
   useEffect(() => {
     if (initialData && !isSelfChangeRef.current) {
       if (initialData.strokes && Array.isArray(initialData.strokes)) {
-        setStrokes(initialData.strokes);
+        setStrokes((prevStrokes) => {
+          const remoteStrokes: Stroke[] = initialData.strokes;
+          const remoteMap = new Map(remoteStrokes.map((s) => [s.id, s]));
+          const localMap = new Map(prevStrokes.map((s) => [s.id, s]));
+
+          // Fast equality check
+          if (
+            prevStrokes.length === remoteStrokes.length &&
+            prevStrokes.every((s, i) => s.id === remoteStrokes[i]?.id)
+          ) {
+            return prevStrokes;
+          }
+
+          // Merge: remote strokes + local strokes that haven't been synchronized yet
+          const merged: Stroke[] = [...remoteStrokes];
+          for (const [id, localStroke] of localMap.entries()) {
+            if (!remoteMap.has(id)) {
+              merged.push(localStroke);
+            }
+          }
+          return merged;
+        });
       }
+
       if (initialData.stickyNotes && Array.isArray(initialData.stickyNotes)) {
-        setStickyNotes(initialData.stickyNotes);
+        setStickyNotes((prevNotes) => {
+          const remoteNotes: StickyNote[] = initialData.stickyNotes;
+          const remoteMap = new Map(remoteNotes.map((n) => [n.id, n]));
+          const localMap = new Map(prevNotes.map((n) => [n.id, n]));
+
+          if (
+            prevNotes.length === remoteNotes.length &&
+            prevNotes.every((n, i) => n.id === remoteNotes[i]?.id && n.text === remoteNotes[i]?.text)
+          ) {
+            return prevNotes;
+          }
+
+          const merged: StickyNote[] = [...remoteNotes];
+          for (const [id, localNote] of localMap.entries()) {
+            if (!remoteMap.has(id)) {
+              merged.push(localNote);
+            }
+          }
+          return merged;
+        });
       }
     }
   }, [initialData]);
@@ -174,9 +221,63 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     });
   };
 
+  // Precise partial slice eraser: cuts strokes into sub-segments rather than deleting the entire stroke
+  const eraseStrokesAt = useCallback(
+    (strokeList: Stroke[], ex: number, ey: number, radius: number): { updated: Stroke[]; didChange: boolean } => {
+      let didChange = false;
+      const result: Stroke[] = [];
+
+      for (const st of strokeList) {
+        const threshold = radius + st.size / 2.5;
+        const subSegments: number[][][] = [];
+        let currentSegment: number[][] = [];
+        let strokeWasCut = false;
+
+        for (let i = 0; i < st.points.length; i++) {
+          const pt = st.points[i];
+          const dist = Math.hypot(pt[0] - ex, pt[1] - ey);
+
+          if (dist > threshold) {
+            currentSegment.push(pt);
+          } else {
+            strokeWasCut = true;
+            if (currentSegment.length > 0) {
+              subSegments.push(currentSegment);
+              currentSegment = [];
+            }
+          }
+        }
+
+        if (currentSegment.length > 0) {
+          subSegments.push(currentSegment);
+        }
+
+        if (!strokeWasCut) {
+          result.push(st);
+        } else {
+          didChange = true;
+          subSegments.forEach((seg, idx) => {
+            if (seg.length > 0) {
+              result.push({
+                ...st,
+                id: `${st.id}_seg${idx}_${Math.random().toString(36).slice(2, 6)}`,
+                points: seg,
+              });
+            }
+          });
+        }
+      }
+
+      return { updated: result, didChange };
+    },
+    []
+  );
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!containerRef.current) return;
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    try {
+      containerRef.current.setPointerCapture(e.pointerId);
+    } catch {}
 
     if (e.button === 1 || activeTool === 'pan' || isSpacePressed) {
       setIsPanning(true);
@@ -210,14 +311,19 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
 
     if (activeTool === 'pen' || activeTool === 'highlighter' || activeTool === 'select') {
       setIsDrawing(true);
-      setCurrentStroke([[x, y, e.pressure || 0.5]]);
+      const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
+      setCurrentStroke([[x, y, pressure]]);
     } else if (activeTool === 'eraser') {
-      const remainingStrokes = strokes.filter((st) => {
-        return !st.points.some(([px, py]) => Math.hypot(px - x, py - y) < 30);
-      });
-      setStrokes(remainingStrokes);
-      triggerChange(remainingStrokes, stickyNotes, pan);
-      saveHistorySnapshot(remainingStrokes, stickyNotes);
+      isErasingRef.current = true;
+      lastErasePosRef.current = { x, y };
+      setEraserPos({ x, y });
+      setEraserTrail([{ x, y, id: Date.now() }]);
+
+      const { updated, didChange } = eraseStrokesAt(strokes, x, y, strokeWidth);
+      if (didChange) {
+        setStrokes(updated);
+        triggerChange(updated, stickyNotes, pan);
+      }
     }
   };
 
@@ -241,32 +347,68 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
 
     onCursorMove?.(x, y);
 
-    if (activeTool === 'eraser' && e.buttons === 1) {
-      const remainingStrokes = strokes.filter((st) => {
-        return !st.points.some(([px, py]) => Math.hypot(px - x, py - y) < 30);
-      });
-      if (remainingStrokes.length !== strokes.length) {
-        setStrokes(remainingStrokes);
-        triggerChange(remainingStrokes, stickyNotes, pan);
+    if (activeTool === 'eraser') {
+      setEraserPos({ x, y });
+
+      if (isErasingRef.current || e.buttons === 1) {
+        setEraserTrail((prev) => {
+          const next = [...prev, { x, y, id: Date.now() + Math.random() }];
+          return next.slice(-25);
+        });
+
+        // Interpolate points between last erase pos and current pos for gapless erasing
+        const last = lastErasePosRef.current || { x, y };
+        const dist = Math.hypot(x - last.x, y - last.y);
+        const steps = Math.max(1, Math.min(8, Math.ceil(dist / Math.max(4, strokeWidth / 2))));
+
+        let currentStrokeList = strokes;
+        let anyErased = false;
+
+        for (let s = 1; s <= steps; s++) {
+          const ix = last.x + (x - last.x) * (s / steps);
+          const iy = last.y + (y - last.y) * (s / steps);
+          const { updated, didChange } = eraseStrokesAt(currentStrokeList, ix, iy, strokeWidth);
+          if (didChange) {
+            currentStrokeList = updated;
+            anyErased = true;
+          }
+        }
+
+        lastErasePosRef.current = { x, y };
+
+        if (anyErased) {
+          setStrokes(currentStrokeList);
+          triggerChange(currentStrokeList, stickyNotes, pan);
+        }
       }
       return;
     }
 
     if (!isDrawing || !currentStroke) return;
-    setCurrentStroke((prev) => (prev ? [...prev, [x, y, e.pressure || 0.5]] : [[x, y, e.pressure || 0.5]]));
+    const pressure = e.pressure && e.pressure > 0 ? e.pressure : 0.5;
+    setCurrentStroke((prev) => (prev ? [...prev, [x, y, pressure]] : [[x, y, pressure]]));
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+    try {
+      containerRef.current?.releasePointerCapture(e.pointerId);
+    } catch {}
 
     if (isPanning) {
       setIsPanning(false);
       triggerChange(strokes, stickyNotes, pan);
     }
 
+    if (isErasingRef.current) {
+      isErasingRef.current = false;
+      lastErasePosRef.current = null;
+      saveHistorySnapshot(strokes, stickyNotes);
+      setTimeout(() => setEraserTrail([]), 180);
+    }
+
     if (isDrawing && currentStroke && currentStroke.length > 0) {
       const newStroke: Stroke = {
-        id: 'stroke_' + Math.random().toString(36).slice(2, 7),
+        id: 'stroke_' + Math.random().toString(36).slice(2, 7) + '_' + Date.now(),
         points: currentStroke,
         color: strokeColor,
         size: activeTool === 'highlighter' ? strokeWidth * 2.5 : strokeWidth,
@@ -279,6 +421,15 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     }
     setIsDrawing(false);
     setCurrentStroke(null);
+  };
+
+  const handlePointerLeave = () => {
+    setEraserPos(null);
+    if (isErasingRef.current) {
+      isErasingRef.current = false;
+      lastErasePosRef.current = null;
+      setEraserTrail([]);
+    }
   };
 
   const getSvgPathFromStroke = (strokePoints: number[][], size: number) => {
@@ -343,10 +494,17 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className={`w-full h-full relative overflow-hidden bg-[#030704] select-none ${
-        isPanning || activeTool === 'pan' || isSpacePressed ? 'cursor-grab active:cursor-grabbing' : 'cursor-crosshair'
+      onPointerCancel={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
+      className={`w-full h-full relative overflow-hidden bg-[#030704] select-none touch-none ${
+        isPanning || activeTool === 'pan' || isSpacePressed
+          ? 'cursor-grab active:cursor-grabbing'
+          : activeTool === 'eraser'
+          ? 'cursor-none'
+          : 'cursor-crosshair'
       }`}
       style={{
+        touchAction: 'none',
         backgroundImage: 'radial-gradient(circle, rgba(0, 255, 102, 0.15) 1.2px, transparent 1.2px)',
         backgroundSize: '24px 24px',
       }}
@@ -378,6 +536,34 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
               fill={strokeColor}
               opacity={activeTool === 'highlighter' ? 0.45 : 1}
             />
+          )}
+
+          {/* Dynamic Eraser Swipe Trail */}
+          {eraserTrail.length > 1 && (
+            <path
+              d={getSvgPathFromStroke(
+                eraserTrail.map((p) => [p.x, p.y, 0.6]),
+                strokeWidth * 1.6
+              )}
+              fill="rgba(0, 255, 102, 0.22)"
+              stroke="rgba(0, 255, 102, 0.6)"
+              strokeWidth={1.5 / zoomLevel}
+              className="pointer-events-none transition-opacity duration-300"
+            />
+          )}
+
+          {/* Live Eraser Head & Indicator */}
+          {activeTool === 'eraser' && eraserPos && (
+            <g transform={`translate(${eraserPos.x}, ${eraserPos.y})`} className="pointer-events-none">
+              <circle
+                r={strokeWidth}
+                fill="rgba(0, 255, 102, 0.12)"
+                stroke="rgba(0, 255, 102, 0.9)"
+                strokeWidth={2 / zoomLevel}
+                strokeDasharray="4 3"
+              />
+              <circle r={2.5 / zoomLevel} fill="#00ff66" />
+            </g>
           )}
         </svg>
 
