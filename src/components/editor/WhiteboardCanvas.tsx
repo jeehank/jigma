@@ -57,6 +57,56 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
 
+  // Undo / Redo history stack
+  const historyRef = useRef<{ strokes: Stroke[]; stickyNotes: StickyNote[] }[]>([]);
+  const historyIndexRef = useRef(-1);
+  const isUndoRedoRef = useRef(false);
+  const MAX_HISTORY = 50;
+
+  const saveHistorySnapshot = useCallback(
+    (newStrokes: Stroke[], newNotes: StickyNote[]) => {
+      if (isUndoRedoRef.current) return;
+      const trimmed = historyRef.current.slice(0, historyIndexRef.current + 1);
+      trimmed.push({ strokes: newStrokes, stickyNotes: newNotes });
+      if (trimmed.length > MAX_HISTORY) trimmed.shift();
+      historyRef.current = trimmed;
+      historyIndexRef.current = trimmed.length - 1;
+    },
+    []
+  );
+
+  const performUndo = useCallback(() => {
+    if (historyIndexRef.current <= 0) return;
+    historyIndexRef.current -= 1;
+    const snapshot = historyRef.current[historyIndexRef.current];
+    if (!snapshot) return;
+    isUndoRedoRef.current = true;
+    setStrokes(snapshot.strokes);
+    setStickyNotes(snapshot.stickyNotes);
+    triggerChange(snapshot.strokes, snapshot.stickyNotes, pan);
+    isUndoRedoRef.current = false;
+  }, [pan, triggerChange]);
+
+  const performRedo = useCallback(() => {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    historyIndexRef.current += 1;
+    const snapshot = historyRef.current[historyIndexRef.current];
+    if (!snapshot) return;
+    isUndoRedoRef.current = true;
+    setStrokes(snapshot.strokes);
+    setStickyNotes(snapshot.stickyNotes);
+    triggerChange(snapshot.strokes, snapshot.stickyNotes, pan);
+    isUndoRedoRef.current = false;
+  }, [pan, triggerChange]);
+
+  // Save initial state on first mount
+  useEffect(() => {
+    if (historyRef.current.length === 0) {
+      saveHistorySnapshot(strokes, stickyNotes);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Sync state if initialData changes externally (e.g. from realtime broadcast)
   const isSelfChangeRef = useRef(false);
 
@@ -74,6 +124,19 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') setIsSpacePressed(true);
+
+      // Undo: Ctrl+Z
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        performUndo();
+        return;
+      }
+      // Redo: Ctrl+Shift+Z
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        performRedo();
+        return;
+      }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') setIsSpacePressed(false);
@@ -84,7 +147,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [performUndo, performRedo]);
 
   const triggerChange = useCallback(
     (newStrokes: Stroke[], newNotes: StickyNote[], currentPan: { x: number; y: number }) => {
@@ -141,6 +204,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       const updatedNotes = [...stickyNotes, newSticky];
       setStickyNotes(updatedNotes);
       triggerChange(strokes, updatedNotes, pan);
+      saveHistorySnapshot(strokes, updatedNotes);
       return;
     }
 
@@ -153,6 +217,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       });
       setStrokes(remainingStrokes);
       triggerChange(remainingStrokes, stickyNotes, pan);
+      saveHistorySnapshot(remainingStrokes, stickyNotes);
     }
   };
 
@@ -210,6 +275,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       const updatedStrokes = [...strokes, newStroke];
       setStrokes(updatedStrokes);
       triggerChange(updatedStrokes, stickyNotes, pan);
+      saveHistorySnapshot(updatedStrokes, stickyNotes);
     }
     setIsDrawing(false);
     setCurrentStroke(null);
@@ -240,12 +306,14 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     const updated = stickyNotes.map((s) => (s.id === id ? { ...s, text } : s));
     setStickyNotes(updated);
     triggerChange(strokes, updated, pan);
+    saveHistorySnapshot(strokes, updated);
   };
 
   const handleDeleteSticky = (id: string) => {
     const updated = stickyNotes.filter((s) => s.id !== id);
     setStickyNotes(updated);
     triggerChange(strokes, updated, pan);
+    saveHistorySnapshot(strokes, updated);
   };
 
   (window as any).__whiteboardCanvasActions = {
@@ -264,6 +332,8 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         exportElementAsPdf(containerRef.current, { filename: 'whiteboard.pdf' });
       }
     },
+    undo: performUndo,
+    redo: performRedo,
   };
 
   return (
