@@ -59,7 +59,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
   };
 
   return (
-    <header className="h-14 border-b border-emerald-500/30 glass-panel px-4 flex items-center justify-between sticky top-0 z-40 font-mono">
+    <header className="h-14 border-b border-emerald-500/30 glass-panel px-4 flex items-center justify-between sticky top-0 z-40 font-jakarta">
       <div className="flex items-center space-x-3">
         <button
           onClick={onBackToDashboard}
@@ -69,7 +69,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
           <ArrowLeft className="w-4 h-4" />
         </button>
 
-        <h1 className="text-xl font-bold text-white tracking-wide mr-1">Jigma</h1>
+        <h1 className="text-xl font-bold text-white tracking-wide mr-1 font-syne">Jigma</h1>
 
         <div className="h-5 w-px bg-emerald-900/60" />
 
@@ -82,7 +82,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
                 value={titleInput}
                 onChange={(e) => setTitleInput(e.target.value)}
                 onBlur={handleTitleSubmit}
-                className="px-2 py-1 bg-black border border-emerald-400 rounded text-sm text-emerald-300 focus:outline-none font-bold font-mono"
+                className="px-2 py-1 bg-black border border-emerald-400 rounded text-sm text-emerald-300 focus:outline-none font-bold font-jakarta"
               />
             </form>
           ) : (
@@ -117,7 +117,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
 
         <span
           onClick={onResetZoom}
-          className="px-2 text-xs font-mono font-bold text-emerald-300 hover:text-white cursor-pointer select-none"
+          className="px-2 text-xs font-bold text-emerald-300 hover:text-white cursor-pointer select-none font-jakarta"
           title="Click to reset 100%"
         >
           {Math.round(zoomLevel * 100)}%
@@ -146,15 +146,15 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
           {collaborators.slice(0, 4).map((c) => (
             <div
               key={c.id}
-              className="w-7 h-7 rounded-full border-2 border-black flex items-center justify-center text-[10px] font-bold text-black shadow-md uppercase"
+              className="w-7 h-7 rounded-full border-2 border-black flex items-center justify-center text-[10px] font-bold text-black shadow-md uppercase font-jakarta"
               style={{ backgroundColor: c.color || '#00ff66' }}
-              title={`${c.name} (Live)`}
+              title={c.name}
             >
               {c.name.slice(0, 2)}
             </div>
           ))}
           {collaborators.length > 4 && (
-            <div className="w-7 h-7 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-center text-emerald-400 text-[10px] font-bold">
+            <div className="w-7 h-7 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-center text-emerald-400 text-[10px] font-bold font-jakarta">
               +{collaborators.length - 4}
             </div>
           )}
@@ -163,12 +163,6 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
               <Users className="w-3.5 h-3.5" />
             </div>
           )}
-        </div>
-
-        {/* Live sync badge */}
-        <div className="hidden sm:flex items-center space-x-1.5 text-[11px] text-emerald-400 font-bold bg-emerald-950/40 px-2 py-1 rounded-lg border border-emerald-500/30">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span>LIVE</span>
         </div>
 
         {/* Share Button */}
