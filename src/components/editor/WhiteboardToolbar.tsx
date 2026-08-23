@@ -7,6 +7,8 @@ import {
   Eraser,
   FileText,
   Type,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 
 interface WhiteboardToolbarProps {
@@ -16,6 +18,8 @@ interface WhiteboardToolbarProps {
   onChangeColor: (color: string) => void;
   strokeWidth: number;
   onChangeWidth: (width: number) => void;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
 const GREEN_CYBER_COLORS = [
@@ -36,9 +40,29 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
   onChangeColor,
   strokeWidth,
   onChangeWidth,
+  onUndo,
+  onRedo,
 }) => {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 glass-panel px-4 py-2.5 rounded-2xl shadow-2xl border border-emerald-500/40 flex items-center space-x-2 backdrop-blur-xl font-mono">
+      <button
+        onClick={onUndo}
+        className="p-2.5 text-emerald-400 hover:text-white hover:bg-emerald-950/60 rounded-xl transition-all"
+        title="Undo (Ctrl+Z)"
+      >
+        <Undo2 className="w-4 h-4" />
+      </button>
+
+      <button
+        onClick={onRedo}
+        className="p-2.5 text-emerald-400 hover:text-white hover:bg-emerald-950/60 rounded-xl transition-all"
+        title="Redo (Ctrl+Shift+Z)"
+      >
+        <Redo2 className="w-4 h-4" />
+      </button>
+
+      <div className="h-5 w-px bg-emerald-900/60" />
+
       <button
         onClick={() => onSelectTool('select')}
         className={`p-2.5 rounded-xl transition-all ${

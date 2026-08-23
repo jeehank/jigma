@@ -645,6 +645,8 @@ export function App() {
                 onConvertToFrame={() => (window as any).__designCanvasActions?.convertToFrame()}
                 onToggleMask={() => (window as any).__designCanvasActions?.toggleMask()}
                 onDeleteSelected={() => (window as any).__designCanvasActions?.deleteActiveElement()}
+                onUndo={() => (window as any).__designCanvasActions?.undo()}
+                onRedo={() => (window as any).__designCanvasActions?.redo()}
               />
             </>
           ) : (
@@ -666,6 +668,8 @@ export function App() {
                 onChangeColor={setWhiteboardColor}
                 strokeWidth={whiteboardWidth}
                 onChangeWidth={setWhiteboardWidth}
+                onUndo={() => (window as any).__whiteboardCanvasActions?.undo()}
+                onRedo={() => (window as any).__whiteboardCanvasActions?.redo()}
               />
             </>
           )}
