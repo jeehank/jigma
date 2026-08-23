@@ -29,66 +29,8 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const isSelfChangeRef = useRef(false);
-
-  // Undo / Redo history stack
-  const historyRef = useRef<string[]>([]);
-  const historyIndexRef = useRef(-1);
-  const isUndoRedoRef = useRef(false);
-  const MAX_HISTORY = 50;
-
-  const saveHistorySnapshot = useCallback(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || isUndoRedoRef.current || isLoadingRef.current || isDisposingRef.current) return;
-    const json = JSON.stringify(
-      (canvas as any).toObject(['id', 'customName', 'isFrame', 'isMask', 'adjustments', 'locked', 'selectable', 'src'])
-    );
-    // Trim any forward history when a new action is recorded
-    const trimmed = historyRef.current.slice(0, historyIndexRef.current + 1);
-    trimmed.push(json);
-    if (trimmed.length > MAX_HISTORY) trimmed.shift();
-    historyRef.current = trimmed;
-    historyIndexRef.current = trimmed.length - 1;
-  }, []);
-
-  const performUndo = useCallback(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || historyIndexRef.current <= 0) return;
-    historyIndexRef.current -= 1;
-    const snapshot = historyRef.current[historyIndexRef.current];
-    if (!snapshot) return;
-    isUndoRedoRef.current = true;
-    canvas.loadFromJSON(JSON.parse(snapshot)).then(() => {
-      canvas.getObjects().forEach((obj) => {
-        if ((obj as any).adjustments) {
-          applyFiltersToObject(obj, (obj as any).adjustments);
-        }
-      });
-      canvas.renderAll();
-      handleSelection();
-      updateLayersList(false);
-      isUndoRedoRef.current = false;
-    });
-  }, [applyFiltersToObject, handleSelection, updateLayersList]);
-
-  const performRedo = useCallback(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || historyIndexRef.current >= historyRef.current.length - 1) return;
-    historyIndexRef.current += 1;
-    const snapshot = historyRef.current[historyIndexRef.current];
-    if (!snapshot) return;
-    isUndoRedoRef.current = true;
-    canvas.loadFromJSON(JSON.parse(snapshot)).then(() => {
-      canvas.getObjects().forEach((obj) => {
-        if ((obj as any).adjustments) {
-          applyFiltersToObject(obj, (obj as any).adjustments);
-        }
-      });
-      canvas.renderAll();
-      handleSelection();
-      updateLayersList(false);
-      isUndoRedoRef.current = false;
-    });
-  }, [applyFiltersToObject, handleSelection, updateLayersList]);
+  const isLoadingRef = useRef(true);
+  const isDisposingRef = useRef(false);
 
   // Apply visual color grading filters to an object (especially images)
   const applyFiltersToObject = useCallback((obj: fabric.Object, adj: ColorAdjustments) => {
@@ -232,9 +174,6 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     });
   }, [onSelectElement]);
 
-  const isLoadingRef = useRef(true);
-  const isDisposingRef = useRef(false);
-
   const updateLayersList = useCallback((skipSave: boolean = false) => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
@@ -265,6 +204,66 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
       isSelfChangeRef.current = false;
     }, 100);
   }, [onChangeData, onUpdateElementsList]);
+
+  // Undo / Redo history stack
+  const historyRef = useRef<string[]>([]);
+  const historyIndexRef = useRef(-1);
+  const isUndoRedoRef = useRef(false);
+  const MAX_HISTORY = 50;
+
+  const saveHistorySnapshot = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || isUndoRedoRef.current || isLoadingRef.current || isDisposingRef.current) return;
+    const json = JSON.stringify(
+      (canvas as any).toObject(['id', 'customName', 'isFrame', 'isMask', 'adjustments', 'locked', 'selectable', 'src'])
+    );
+    // Trim any forward history when a new action is recorded
+    const trimmed = historyRef.current.slice(0, historyIndexRef.current + 1);
+    trimmed.push(json);
+    if (trimmed.length > MAX_HISTORY) trimmed.shift();
+    historyRef.current = trimmed;
+    historyIndexRef.current = trimmed.length - 1;
+  }, []);
+
+  const performUndo = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || historyIndexRef.current <= 0) return;
+    historyIndexRef.current -= 1;
+    const snapshot = historyRef.current[historyIndexRef.current];
+    if (!snapshot) return;
+    isUndoRedoRef.current = true;
+    canvas.loadFromJSON(JSON.parse(snapshot)).then(() => {
+      canvas.getObjects().forEach((obj) => {
+        if ((obj as any).adjustments) {
+          applyFiltersToObject(obj, (obj as any).adjustments);
+        }
+      });
+      canvas.renderAll();
+      handleSelection();
+      updateLayersList(false);
+      isUndoRedoRef.current = false;
+    });
+  }, [applyFiltersToObject, handleSelection, updateLayersList]);
+
+  const performRedo = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || historyIndexRef.current >= historyRef.current.length - 1) return;
+    historyIndexRef.current += 1;
+    const snapshot = historyRef.current[historyIndexRef.current];
+    if (!snapshot) return;
+    isUndoRedoRef.current = true;
+    canvas.loadFromJSON(JSON.parse(snapshot)).then(() => {
+      canvas.getObjects().forEach((obj) => {
+        if ((obj as any).adjustments) {
+          applyFiltersToObject(obj, (obj as any).adjustments);
+        }
+      });
+      canvas.renderAll();
+      handleSelection();
+      updateLayersList(false);
+      isUndoRedoRef.current = false;
+    });
+  }, [applyFiltersToObject, handleSelection, updateLayersList]);
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;

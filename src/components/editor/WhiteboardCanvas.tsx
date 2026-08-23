@@ -57,6 +57,33 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
 
+  // Sync state if initialData changes externally (e.g. from realtime broadcast)
+  const isSelfChangeRef = useRef(false);
+
+  useEffect(() => {
+    if (initialData && !isSelfChangeRef.current) {
+      if (initialData.strokes && Array.isArray(initialData.strokes)) {
+        setStrokes(initialData.strokes);
+      }
+      if (initialData.stickyNotes && Array.isArray(initialData.stickyNotes)) {
+        setStickyNotes(initialData.stickyNotes);
+      }
+    }
+  }, [initialData]);
+
+  const triggerChange = useCallback(
+    (newStrokes: Stroke[], newNotes: StickyNote[], currentPan: { x: number; y: number }) => {
+      isSelfChangeRef.current = true;
+      const svgThumb = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="#0a0a0a"/><g transform="scale(0.3)"><path d="M50 50 L150 150 L250 80" stroke="#00ff66" stroke-width="8" fill="none"/></g></svg>`;
+      const thumbUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svgThumb)}`;
+      onChangeData({ strokes: newStrokes, stickyNotes: newNotes, pan: currentPan }, thumbUrl);
+      setTimeout(() => {
+        isSelfChangeRef.current = false;
+      }, 100);
+    },
+    [onChangeData]
+  );
+
   // Undo / Redo history stack
   const historyRef = useRef<{ strokes: Stroke[]; stickyNotes: StickyNote[] }[]>([]);
   const historyIndexRef = useRef(-1);
@@ -107,20 +134,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync state if initialData changes externally (e.g. from realtime broadcast)
-  const isSelfChangeRef = useRef(false);
-
-  useEffect(() => {
-    if (initialData && !isSelfChangeRef.current) {
-      if (initialData.strokes && Array.isArray(initialData.strokes)) {
-        setStrokes(initialData.strokes);
-      }
-      if (initialData.stickyNotes && Array.isArray(initialData.stickyNotes)) {
-        setStickyNotes(initialData.stickyNotes);
-      }
-    }
-  }, [initialData]);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') setIsSpacePressed(true);
@@ -148,19 +161,6 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [performUndo, performRedo]);
-
-  const triggerChange = useCallback(
-    (newStrokes: Stroke[], newNotes: StickyNote[], currentPan: { x: number; y: number }) => {
-      isSelfChangeRef.current = true;
-      const svgThumb = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="#0a0a0a"/><g transform="scale(0.3)"><path d="M50 50 L150 150 L250 80" stroke="#00ff66" stroke-width="8" fill="none"/></g></svg>`;
-      const thumbUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svgThumb)}`;
-      onChangeData({ strokes: newStrokes, stickyNotes: newNotes, pan: currentPan }, thumbUrl);
-      setTimeout(() => {
-        isSelfChangeRef.current = false;
-      }, 100);
-    },
-    [onChangeData]
-  );
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
