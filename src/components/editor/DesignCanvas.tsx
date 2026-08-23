@@ -404,19 +404,30 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
   useEffect(() => {
     if (initialData && !isSelfChangeRef.current && !isLoadingRef.current && fabricCanvasRef.current) {
       const canvas = fabricCanvasRef.current;
-      if (initialData.objects && initialData.objects.length > 0) {
+      if (isEditingText(canvas)) return;
+
+      const activeId = (canvas.getActiveObject() as any)?.id;
+
+      if (initialData.objects && Array.isArray(initialData.objects)) {
         canvas.loadFromJSON(initialData).then(() => {
           canvas.getObjects().forEach((obj) => {
             if ((obj as any).adjustments) {
               applyFiltersToObject(obj, (obj as any).adjustments);
             }
           });
+          if (activeId) {
+            const restored = canvas.getObjects().find((o: any) => o.id === activeId);
+            if (restored) {
+              canvas.setActiveObject(restored);
+            }
+          }
           canvas.renderAll();
           handleSelection();
+          updateLayersList(true);
         });
       }
     }
-  }, [initialData, handleSelection]);
+  }, [initialData, handleSelection, applyFiltersToObject, updateLayersList]);
 
   const isEditingText = (canvas: fabric.Canvas) => {
     const activeObj = canvas.getActiveObject();
@@ -963,7 +974,8 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
   return (
     <div
       ref={containerRef}
-      className="w-full h-full relative overflow-hidden bg-grid-pattern bg-[#030704] flex items-center justify-center select-none"
+      className="w-full h-full relative overflow-hidden bg-grid-pattern bg-[#030704] flex items-center justify-center select-none touch-none"
+      style={{ touchAction: 'none' }}
     >
       <canvas ref={canvasRef} />
 
