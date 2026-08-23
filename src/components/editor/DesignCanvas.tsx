@@ -30,6 +30,66 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const isSelfChangeRef = useRef(false);
 
+  // Undo / Redo history stack
+  const historyRef = useRef<string[]>([]);
+  const historyIndexRef = useRef(-1);
+  const isUndoRedoRef = useRef(false);
+  const MAX_HISTORY = 50;
+
+  const saveHistorySnapshot = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || isUndoRedoRef.current || isLoadingRef.current || isDisposingRef.current) return;
+    const json = JSON.stringify(
+      (canvas as any).toObject(['id', 'customName', 'isFrame', 'isMask', 'adjustments', 'locked', 'selectable', 'src'])
+    );
+    // Trim any forward history when a new action is recorded
+    const trimmed = historyRef.current.slice(0, historyIndexRef.current + 1);
+    trimmed.push(json);
+    if (trimmed.length > MAX_HISTORY) trimmed.shift();
+    historyRef.current = trimmed;
+    historyIndexRef.current = trimmed.length - 1;
+  }, []);
+
+  const performUndo = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || historyIndexRef.current <= 0) return;
+    historyIndexRef.current -= 1;
+    const snapshot = historyRef.current[historyIndexRef.current];
+    if (!snapshot) return;
+    isUndoRedoRef.current = true;
+    canvas.loadFromJSON(JSON.parse(snapshot)).then(() => {
+      canvas.getObjects().forEach((obj) => {
+        if ((obj as any).adjustments) {
+          applyFiltersToObject(obj, (obj as any).adjustments);
+        }
+      });
+      canvas.renderAll();
+      handleSelection();
+      updateLayersList(false);
+      isUndoRedoRef.current = false;
+    });
+  }, [applyFiltersToObject, handleSelection, updateLayersList]);
+
+  const performRedo = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || historyIndexRef.current >= historyRef.current.length - 1) return;
+    historyIndexRef.current += 1;
+    const snapshot = historyRef.current[historyIndexRef.current];
+    if (!snapshot) return;
+    isUndoRedoRef.current = true;
+    canvas.loadFromJSON(JSON.parse(snapshot)).then(() => {
+      canvas.getObjects().forEach((obj) => {
+        if ((obj as any).adjustments) {
+          applyFiltersToObject(obj, (obj as any).adjustments);
+        }
+      });
+      canvas.renderAll();
+      handleSelection();
+      updateLayersList(false);
+      isUndoRedoRef.current = false;
+    });
+  }, [applyFiltersToObject, handleSelection, updateLayersList]);
+
   // Apply visual color grading filters to an object (especially images)
   const applyFiltersToObject = useCallback((obj: fabric.Object, adj: ColorAdjustments) => {
     (obj as any).adjustments = adj;
@@ -265,12 +325,12 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     canvas.on('selection:created', handleSelection);
     canvas.on('selection:updated', handleSelection);
     canvas.on('selection:cleared', handleSelection);
-    canvas.on('object:modified', () => updateLayersList(false));
-    canvas.on('object:added', () => updateLayersList(false));
+    canvas.on('object:modified', () => { updateLayersList(false); saveHistorySnapshot(); });
+    canvas.on('object:added', () => { updateLayersList(false); saveHistorySnapshot(); });
     canvas.on('object:removed', () => {
-      if (!isDisposingRef.current) updateLayersList(false);
+      if (!isDisposingRef.current) { updateLayersList(false); saveHistorySnapshot(); }
     });
-    canvas.on('text:changed', () => updateLayersList(false));
+    canvas.on('text:changed', () => { updateLayersList(false); saveHistorySnapshot(); });
 
     const handleMouseMove = (opt: any) => {
       if (onCursorMove) {
@@ -284,6 +344,19 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isEditingText(canvas)) return;
+
+      // Undo: Ctrl+Z
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        performUndo();
+        return;
+      }
+      // Redo: Ctrl+Shift+Z
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        performRedo();
+        return;
+      }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         deleteActiveElement();
@@ -884,6 +957,8 @@ export const DesignCanvas: React.FC<DesignCanvasProps> = ({
     bringActiveToFront,
     sendActiveBackwards,
     bringActiveForward,
+    undo: performUndo,
+    redo: performRedo,
   };
 
   return (
