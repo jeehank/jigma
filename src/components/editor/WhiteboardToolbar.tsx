@@ -153,28 +153,42 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
 
       <div className="h-5 w-px bg-emerald-900/60" />
 
-      <div className="flex items-center space-x-1 bg-black p-1 rounded-xl border border-emerald-900/60">
-        {GREEN_CYBER_COLORS.map((c) => (
-          <button
-            key={c}
-            onClick={() => onChangeColor(c)}
-            className={`w-5 h-5 rounded-full transition-transform border ${
-              strokeColor === c ? 'scale-110 border-white ring-2 ring-emerald-400' : 'border-transparent opacity-80 hover:opacity-100'
-            }`}
-            style={{ backgroundColor: c }}
-          />
-        ))}
-      </div>
+      {activeTool !== 'eraser' ? (
+        <div className="flex items-center space-x-1 bg-black p-1 rounded-xl border border-emerald-900/60">
+          {GREEN_CYBER_COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => onChangeColor(c)}
+              className={`w-5 h-5 rounded-full transition-transform border ${
+                strokeColor === c ? 'scale-110 border-white ring-2 ring-emerald-400' : 'border-transparent opacity-80 hover:opacity-100'
+              }`}
+              style={{ backgroundColor: c }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex items-center space-x-1.5 px-2 py-1 bg-emerald-950/40 rounded-xl border border-emerald-500/30 text-[11px] text-emerald-400 font-bold font-mono">
+          <span>ERASER</span>
+          <span className="text-white">{strokeWidth}px</span>
+        </div>
+      )}
 
-      <input
-        type="range"
-        min="2"
-        max="30"
-        value={strokeWidth}
-        onChange={(e) => onChangeWidth(parseInt(e.target.value))}
-        className="w-16 accent-emerald-400 bg-black rounded-lg cursor-pointer"
-        title="Brush Width"
-      />
+      <div className="flex items-center space-x-1.5 bg-black/60 px-2 py-1 rounded-xl border border-emerald-900/60">
+        <input
+          type="range"
+          min={activeTool === 'eraser' ? 10 : 2}
+          max={activeTool === 'eraser' ? 80 : 30}
+          value={strokeWidth}
+          onChange={(e) => onChangeWidth(parseInt(e.target.value))}
+          className="w-16 accent-emerald-400 bg-black rounded-lg cursor-pointer"
+          title={activeTool === 'eraser' ? `Eraser Size (${strokeWidth}px)` : `Brush Width (${strokeWidth}px)`}
+        />
+        {activeTool !== 'eraser' && (
+          <span className="text-[10px] text-emerald-400 font-mono font-bold w-4 text-center">
+            {strokeWidth}
+          </span>
+        )}
+      </div>
     </div>
   );
 };
